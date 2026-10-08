@@ -1,0 +1,152 @@
+{
+  "entities": {
+    "License": {
+      "title": "License",
+      "description": "User license key data and device binding",
+      "type": "object",
+      "properties": {
+        "licenseKey": { "type": "string" },
+        "userId": { "type": "string" },
+        "email": { "type": "string" },
+        "plan": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "activatedAt": { "type": "number" },
+        "expiresAt": { "type": "number" },
+        "maxDevices": { "type": "number" },
+        "currentDevices": { "type": "number" },
+        "dailyLimit": { "type": "number" },
+        "dailyUsed": { "type": "number" },
+        "lastDailyReset": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["licenseKey", "plan", "status", "createdAt"]
+    },
+    "User": {
+      "title": "User",
+      "description": "User account information",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "lastLogin": { "type": "number" }
+      },
+      "required": ["email", "status"]
+    },
+    "Plan": {
+      "title": "Plan",
+      "description": "Subscription tier configuration",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "dailyLimit": { "type": "number" },
+        "maxDevices": { "type": "number" },
+        "enabled": { "type": "boolean" }
+      },
+      "required": ["dailyLimit", "maxDevices", "enabled"]
+    },
+    "Usage": {
+      "title": "Usage",
+      "description": "Daily signal usage record",
+      "type": "object",
+      "properties": {
+        "used": { "type": "number" },
+        "date": { "type": "string" },
+        "lastUpdate": { "type": "number" }
+      },
+      "required": ["used", "date"]
+    },
+    "Signal": {
+      "title": "Signal",
+      "description": "Market trade signal",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "pair": { "type": "string" },
+        "tf": { "type": "string" },
+        "direction": { "type": "string" },
+        "entry": { "type": "number" },
+        "status": { "type": "string" },
+        "score": { "type": "number" },
+        "confidence": { "type": "number" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["pair", "tf", "direction", "status"]
+    },
+    "AdminLog": {
+      "title": "AdminLog",
+      "description": "Audit record for admin actions",
+      "type": "object",
+      "properties": {
+        "adminKey": { "type": "string" },
+        "action": { "type": "string" },
+        "targetId": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["action", "timestamp"]
+    },
+    "Device": {
+      "title": "Device",
+      "description": "Hardware device fingerprint and binding",
+      "type": "object",
+      "properties": {
+        "licenseId": { "type": "string" },
+        "licenseKey": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "lastSeen": { "type": "number" },
+        "userAgent": { "type": "string" },
+        "platform": { "type": "string" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["licenseId", "active"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Administrator account role",
+      "type": "object",
+      "properties": {
+        "role": { "type": "string" },
+        "active": { "type": "boolean" },
+        "email": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["role", "active"]
+    }
+  },
+  "firestore": {
+    "/licenses/{licenseId}": {
+      "schema": "License",
+      "description": "Licenses collection for user access"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles collection"
+    },
+    "/plans/{planId}": {
+      "schema": "Plan",
+      "description": "Pricing tiers and limits"
+    },
+    "/devices/{deviceId}": {
+      "schema": "Device",
+      "description": "Registered devices"
+    },
+    "/usage/{licenseId}/history/{date}": {
+      "schema": "Usage",
+      "description": "Usage history by license and date"
+    },
+    "/signals/{signalId}": {
+      "schema": "Signal",
+      "description": "Generated signal logs"
+    },
+    "/adminLogs/{logId}": {
+      "schema": "AdminLog",
+      "description": "Admin activity trail"
+    },
+    "/admins/{adminId}": {
+      "schema": "Admin",
+      "description": "Authorized administrators"
+    }
+  }
+}

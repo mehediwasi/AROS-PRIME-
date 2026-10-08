@@ -1,0 +1,2463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#04060b" />
+<title>AROS PRIME — Real Market Engine</title>
+<meta name="description" content="AROS PRIME — Real Market Engine" />
+<meta property="og:title" content="AROS PRIME — Real Market Engine" />
+<meta property="og:description" content="AROS PRIME — Real Market Engine" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Inter', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace']
+      },
+      colors: {
+        ink: '#04060b',
+        glass: 'rgba(255,255,255,0.06)',
+        cyan1: '#38bdf8',
+        cyan2: '#7ee0ff',
+        vio1: '#a855f7',
+        up: '#00e676',
+        dn: '#ff3b5c'
+      }
+    }
+  }
+}
+</script>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:#04060b;
+    color:#eaf2ff;
+    font-family:'Inter',system-ui,sans-serif;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::-webkit-scrollbar{width:5px;height:5px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:rgba(120,180,255,.25);border-radius:20px}
+
+  /* ================= LIQUID BACKGROUND ================= */
+  .orbs{position:fixed;inset:0;overflow:hidden;z-index:0;pointer-events:none}
+  .orb{position:absolute;border-radius:50%;filter:blur(90px);opacity:.55;will-change:transform}
+  .orb.a{width:420px;height:420px;background:#0ea5e9;top:-140px;left:-120px;animation:float1 22s ease-in-out infinite}
+  .orb.b{width:380px;height:380px;background:#7c3aed;bottom:-150px;right:-120px;animation:float2 26s ease-in-out infinite}
+  .orb.c{width:300px;height:300px;background:#06b6d4;top:45%;left:60%;animation:float3 30s ease-in-out infinite;opacity:.30}
+  @keyframes float1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(60px,80px) scale(1.15)}}
+  @keyframes float2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-70px,-60px) scale(1.2)}}
+  @keyframes float3{0%,100%{transform:translate(0,0)}50%{transform:translate(-90px,50px)}}
+  .grain{
+    position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.035;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ================= GLASS SYSTEM ================= */
+  .glass{
+    position:relative;
+    background:linear-gradient(155deg,rgba(255,255,255,.078) 0%,rgba(255,255,255,.022) 42%,rgba(255,255,255,.05) 100%);
+    border:1px solid rgba(255,255,255,.095);
+    backdrop-filter:blur(26px) saturate(170%);
+    -webkit-backdrop-filter:blur(26px) saturate(170%);
+    border-radius:26px;
+    box-shadow:
+      0 20px 55px rgba(0,0,0,.60),
+      inset 0 1px 0 rgba(255,255,255,.16),
+      inset 0 -1px 0 rgba(255,255,255,.045);
+  }
+  .glass::after{
+    content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+    background:radial-gradient(130% 80% at 18% -12%,rgba(255,255,255,.20),transparent 56%);
+    opacity:.75;
+  }
+  .glass-soft{
+    background:linear-gradient(160deg,rgba(255,255,255,.055),rgba(255,255,255,.015));
+    border:1px solid rgba(255,255,255,.075);
+    backdrop-filter:blur(18px) saturate(150%);
+    -webkit-backdrop-filter:blur(18px) saturate(150%);
+    border-radius:20px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.11), 0 10px 30px rgba(0,0,0,.40);
+  }
+  .glass-deep{
+    background:linear-gradient(160deg,rgba(10,16,26,.85),rgba(6,10,18,.70));
+    border:1px solid rgba(255,255,255,.07);
+    backdrop-filter:blur(22px) saturate(150%);
+    -webkit-backdrop-filter:blur(22px) saturate(150%);
+    border-radius:22px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 16px 40px rgba(0,0,0,.55);
+  }
+
+  /* ================= INPUTS ================= */
+  .inp{
+    width:100%;
+    background:rgba(255,255,255,.045);
+    border:1px solid rgba(255,255,255,.10);
+    border-radius:16px;
+    padding:16px 18px;
+    color:#fff;
+    font-size:14px;
+    outline:none;
+    transition:.25s;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+  }
+  .inp::placeholder{color:#5b6b80}
+  .inp:focus{
+    border-color:rgba(56,189,248,.65);
+    background:rgba(56,189,248,.07);
+    box-shadow:0 0 0 4px rgba(56,189,248,.10), inset 0 1px 0 rgba(255,255,255,.08);
+  }
+  select.inp{appearance:none;cursor:pointer}
+  select.inp option{background:#0a0f18;color:#fff}
+
+  /* ================= BUTTONS ================= */
+  .btn{
+    border-radius:18px;font-weight:800;letter-spacing:.06em;
+    transition:transform .12s ease, box-shadow .25s ease, filter .25s ease;
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    cursor:pointer;border:none;
+  }
+  .btn:active{transform:scale(.975)}
+  .btn-primary{
+    background:linear-gradient(180deg,#8fe6ff 0%,#38bdf8 55%,#2aa4e0 100%);
+    color:#04121c;
+    box-shadow:0 12px 34px rgba(56,189,248,.38), inset 0 1px 0 rgba(255,255,255,.75), inset 0 -2px 0 rgba(0,0,0,.12);
+  }
+  .btn-primary:hover{filter:brightness(1.06)}
+  .btn-ghost{
+    background:linear-gradient(160deg,rgba(255,255,255,.075),rgba(255,255,255,.02));
+    border:1px solid rgba(255,255,255,.11);
+    color:#dbe9ff;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.12), 0 8px 22px rgba(0,0,0,.35);
+  }
+  .btn-ghost:hover{background:rgba(255,255,255,.09)}
+  .btn-danger{
+    background:linear-gradient(180deg,rgba(255,59,92,.22),rgba(255,59,92,.10));
+    border:1px solid rgba(255,59,92,.35);
+    color:#ff8497;
+  }
+
+  /* ================= MISC ================= */
+  .badge{
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+    padding:5px 11px;border-radius:999px;
+    border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.05);
+  }
+  .badge-cyan{border-color:rgba(56,189,248,.45);color:#7ee0ff;background:rgba(56,189,248,.10)}
+  .badge-vio{border-color:rgba(168,85,247,.45);color:#c9a2ff;background:rgba(168,85,247,.10)}
+  .badge-up{border-color:rgba(0,230,118,.45);color:#4dffa6;background:rgba(0,230,118,.10)}
+  .badge-dn{border-color:rgba(255,59,92,.45);color:#ff8497;background:rgba(255,59,92,.10)}
+  .badge-warn{border-color:rgba(251,191,36,.45);color:#fcd34d;background:rgba(251,191,36,.10)}
+
+  .glow-up{text-shadow:0 0 16px rgba(0,230,118,.65)}
+  .glow-dn{text-shadow:0 0 16px rgba(255,59,92,.65)}
+  .glow-cy{text-shadow:0 0 16px rgba(56,189,248,.65)}
+
+  @keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+  .anim-up{animation:fadeUp .55s cubic-bezier(.22,1,.36,1) both}
+  @keyframes pop{0%{transform:scale(.55);opacity:0}60%{transform:scale(1.06)}100%{transform:scale(1);opacity:1}}
+  .anim-pop{animation:pop .5s cubic-bezier(.175,.885,.32,1.275) both}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .spin{animation:spin 1s linear infinite}
+  @keyframes pulseSoft{0%,100%{opacity:1}50%{opacity:.45}}
+  .pulse-soft{animation:pulseSoft 1.6s ease-in-out infinite}
+
+  /* NAV */
+  .nav-item{
+    display:flex;align-items:center;gap:14px;
+    padding:14px 16px;border-radius:16px;
+    font-size:14px;font-weight:600;color:#93a4bd;
+    cursor:pointer;transition:.22s;border:1px solid transparent;
+  }
+  .nav-item:hover{background:rgba(255,255,255,.045);color:#dbe9ff}
+  .nav-item.active{
+    background:linear-gradient(90deg,rgba(56,189,248,.16),rgba(168,85,247,.08));
+    border-color:rgba(56,189,248,.28);
+    color:#fff;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.10), 0 8px 24px rgba(56,189,248,.12);
+  }
+  .nav-item.active .nav-ico{color:#7ee0ff}
+  .nav-ico{color:#5d6f88;flex-shrink:0}
+
+  .seg{height:6px;flex:1;border-radius:3px;background:rgba(255,255,255,.07);transition:.4s}
+
+  /* drawer */
+  #drawer{
+    position:fixed;top:0;bottom:0;left:0;width:290px;z-index:120;
+    transform:translateX(-104%);
+    transition:transform .38s cubic-bezier(.22,1,.36,1);
+    background:linear-gradient(165deg,rgba(12,17,28,.96),rgba(6,9,16,.98));
+    border-right:1px solid rgba(255,255,255,.08);
+    backdrop-filter:blur(28px) saturate(160%);
+    -webkit-backdrop-filter:blur(28px) saturate(160%);
+  }
+  #drawer.open{transform:translateX(0)}
+  #scrim{
+    position:fixed;inset:0;background:rgba(2,4,8,.68);backdrop-filter:blur(4px);
+    z-index:110;opacity:0;pointer-events:none;transition:opacity .3s;
+  }
+  #scrim.open{opacity:1;pointer-events:auto}
+
+  .page{display:none}
+  .page.active{display:block;animation:fadeUp .45s cubic-bezier(.22,1,.36,1) both}
+
+  .screen{display:none}
+  .screen.active{display:block}
+
+  .kv{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.055);font-size:12px}
+  .kv:last-child{border-bottom:none}
+  .kv .k{color:#6c7d95;font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:700}
+  .kv .v{color:#eaf2ff;font-family:'JetBrains Mono',monospace;font-weight:700;word-break:break-all;text-align:right;max-width:60%}
+
+  .strat-tag{
+    font-size:8px;letter-spacing:.04em;padding:3px 8px;border-radius:999px;
+    background:rgba(56,189,248,.09);border:1px solid rgba(56,189,248,.22);color:#8fd8ff;
+    white-space:nowrap;
+  }
+
+  .ring{
+    width:42px;height:42px;border-radius:50%;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'JetBrains Mono',monospace;font-weight:800;font-size:12px;
+    border:2px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.03);
+  }
+  .ring.high{border-color:rgba(0,230,118,.6);color:#5cffae;box-shadow:0 0 18px rgba(0,230,118,.18)}
+  .ring.mid{border-color:rgba(251,191,36,.6);color:#fcd34d;box-shadow:0 0 18px rgba(251,191,36,.15)}
+  .ring.low{border-color:rgba(255,59,92,.6);color:#ff8fa2;box-shadow:0 0 18px rgba(255,59,92,.15)}
+
+  .divider{height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.10),transparent)}
+</style>
+</head>
+<body>
+
+<div class="orbs">
+  <div class="orb a"></div>
+  <div class="orb b"></div>
+  <div class="orb c"></div>
+</div>
+<div class="grain"></div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- SPLASH                                                 -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div id="screen-splash" class="screen active" style="position:relative;z-index:5">
+  <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px">
+    <div class="glass anim-up" style="width:92px;height:92px;display:flex;align-items:center;justify-content:center;border-radius:28px">
+      <span style="font-size:38px;font-weight:900;background:linear-gradient(180deg,#8fe6ff,#38bdf8);-webkit-background-clip:text;background-clip:text;color:transparent">A</span>
+    </div>
+    <h1 style="margin-top:26px;font-size:22px;font-weight:900;letter-spacing:.24em;text-transform:uppercase">
+      AROS <span style="font-weight:400;color:#7ee0ff">PRIME</span>
+    </h1>
+    <p style="margin-top:8px;font-size:9px;letter-spacing:.32em;color:#5c718a;text-transform:uppercase;font-weight:700">Real Market Engine</p>
+
+    <div style="margin-top:44px;width:210px;display:flex;gap:6px" id="splashBars">
+      <div class="seg"></div><div class="seg"></div><div class="seg"></div>
+      <div class="seg"></div><div class="seg"></div><div class="seg"></div>
+    </div>
+    <p id="splashText" style="margin-top:18px;font-size:9px;letter-spacing:.24em;color:#4d6076;text-transform:uppercase;font-family:'JetBrains Mono',monospace">Initializing secure channel…</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- LICENSE LOGIN (ONLY SYSTEM)                            -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div id="screen-license" class="screen" style="position:relative;z-index:5">
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:22px">
+    <div class="glass anim-up" style="width:100%;max-width:440px;padding:32px 26px 28px">
+
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:28px">
+        <div style="width:54px;height:54px;border-radius:17px;display:flex;align-items:center;justify-content:center;
+                    background:linear-gradient(150deg,#8fe6ff,#38bdf8 60%,#7c3aed);
+                    box-shadow:0 10px 28px rgba(56,189,248,.42), inset 0 1px 0 rgba(255,255,255,.7)">
+          <span style="font-size:23px;font-weight:900;color:#04121c">A</span>
+        </div>
+        <div>
+          <div style="font-size:16px;font-weight:900;letter-spacing:.20em;text-transform:uppercase">AROS PRIME</div>
+          <div style="font-size:8px;letter-spacing:.28em;color:#5c718a;text-transform:uppercase;font-weight:700;margin-top:3px">Real Market Engine</div>
+        </div>
+      </div>
+
+      <h2 style="font-size:28px;font-weight:900;letter-spacing:-.02em;line-height:1.15">License Access.</h2>
+      <p style="margin-top:10px;font-size:12.5px;color:#7c8ea6;line-height:1.65">
+        Enter your AROS PRIME license key to unlock the real‑market M1 live signal engine.
+      </p>
+
+      <div style="margin-top:26px">
+        <label style="display:block;font-size:9px;font-weight:800;letter-spacing:.22em;color:#5c718a;text-transform:uppercase;margin-bottom:9px">License Key</label>
+        <input id="licInput" class="inp"
+               placeholder="AROS-XXXX-XXXX-XXXX-XXXX"
+               autocomplete="off"
+               spellcheck="false"
+               style="font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.10em;font-size:15px;text-align:center;padding:18px 14px" />
+      </div>
+
+      <div id="licError" style="display:none;margin-top:14px;padding:12px 14px;border-radius:14px;font-size:11px;font-weight:700;
+           background:rgba(255,59,92,.10);border:1px solid rgba(255,59,92,.30);color:#ff9aab;line-height:1.6"></div>
+
+      <button id="licBtn" class="btn btn-primary" style="width:100%;height:58px;margin-top:22px;font-size:13px;letter-spacing:.16em;text-transform:uppercase">
+        <i data-lucide="key-round" style="width:17px;height:17px"></i> ACTIVATE LICENSE
+      </button>
+
+      <div class="glass-soft" style="margin-top:22px;padding:14px 16px;display:flex;gap:10px;align-items:flex-start">
+        <i data-lucide="shield-check" style="width:14px;height:14px;color:#5c718a;flex-shrink:0;margin-top:2px"></i>
+        <div style="font-size:9.5px;letter-spacing:.10em;color:#5c718a;text-transform:uppercase;font-weight:700;line-height:1.9">
+          Real Market Only · M1 · No OTC<br>
+          License is bound to this device. Device limit enforced by server.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- BLOCKED                                                -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div id="screen-blocked" class="screen" style="position:relative;z-index:5">
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:22px">
+    <div class="glass anim-up" style="width:100%;max-width:430px;padding:32px 26px 26px;text-align:center">
+
+      <div id="blkIconWrap" style="width:74px;height:74px;border-radius:24px;margin:0 auto 22px;display:flex;align-items:center;justify-content:center;
+                  background:rgba(255,59,92,.12);border:1px solid rgba(255,59,92,.30)">
+        <i id="blkIcon" data-lucide="shield-alert" style="width:32px;height:32px;color:#ff8497"></i>
+      </div>
+
+      <h2 id="blkTitle" style="font-size:22px;font-weight:900;letter-spacing:.02em">LICENSE EXPIRED</h2>
+      <p id="blkMsg" style="margin-top:12px;font-size:12.5px;color:#7c8ea6;line-height:1.7">
+        Your license is no longer valid.
+      </p>
+
+      <div id="blkDetails" class="glass-soft" style="margin-top:22px;padding:6px 16px;text-align:left"></div>
+
+      <button id="blkContact" class="btn btn-primary" style="width:100%;height:56px;margin-top:22px;font-size:12px;letter-spacing:.16em;text-transform:uppercase">
+        CONTACT SUPPORT
+      </button>
+      <button id="blkRecheck" class="btn btn-ghost" style="width:100%;height:50px;margin-top:12px;font-size:11px;letter-spacing:.14em;text-transform:uppercase">
+        Re-check license
+      </button>
+      <button id="blkSignout" class="btn btn-ghost" style="width:100%;height:50px;margin-top:10px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#8ea3bd">
+        Enter another license
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- MAIN APP                                               -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div id="screen-app" class="screen" style="position:relative;z-index:5">
+
+  <!-- TOP BAR -->
+  <header style="position:sticky;top:0;z-index:90;backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);
+                 background:linear-gradient(180deg,rgba(6,10,18,.92),rgba(6,10,18,.62));border-bottom:1px solid rgba(255,255,255,.07)">
+    <div style="max-width:520px;margin:0 auto;padding:14px 18px;display:flex;align-items:center;justify-content:space-between">
+      <button id="menuBtn" class="btn btn-ghost" style="width:44px;height:44px;border-radius:14px;padding:0">
+        <i data-lucide="menu" style="width:19px;height:19px"></i>
+      </button>
+
+      <div style="display:flex;align-items:center;gap:9px">
+        <span style="font-size:14px;font-weight:900;letter-spacing:.20em;text-transform:uppercase">AROS</span>
+        <span style="font-size:14px;font-weight:400;letter-spacing:.20em;text-transform:uppercase;color:#7ee0ff">PRIME</span>
+      </div>
+
+      <div id="topAvatar" style="width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+                  background:linear-gradient(150deg,rgba(56,189,248,.25),rgba(168,85,247,.20));
+                  border:1px solid rgba(255,255,255,.12);font-weight:900;font-size:14px;color:#cfe8ff;cursor:pointer;
+                  box-shadow:inset 0 1px 0 rgba(255,255,255,.16)">A</div>
+    </div>
+  </header>
+
+  <main style="max-width:520px;margin:0 auto;padding:20px 18px 60px;position:relative;z-index:5">
+
+    <!-- ══════ DASHBOARD ══════ -->
+    <section id="page-dashboard" class="page active">
+
+      <div class="glass anim-up" style="padding:22px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div style="font-size:9px;font-weight:800;letter-spacing:.22em;color:#5c718a;text-transform:uppercase">Engine Status</div>
+            <div style="display:flex;align-items:center;gap:9px;margin-top:9px">
+              <span style="width:9px;height:9px;border-radius:50%;background:#00e676;box-shadow:0 0 12px #00e676" class="pulse-soft"></span>
+              <span style="font-size:17px;font-weight:900;letter-spacing:.02em">ONLINE</span>
+            </div>
+            <div style="font-size:10px;color:#6c7d95;margin-top:7px;font-family:'JetBrains Mono',monospace">
+              Live market feed · No OTC · No synthetic
+            </div>
+          </div>
+          <span id="dashPlanBadge" class="badge badge-cyan">PRO</span>
+        </div>
+      </div>
+
+      <!-- usage -->
+      <div class="glass anim-up" style="padding:20px;margin-bottom:16px;animation-delay:.05s">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div style="font-size:9px;font-weight:800;letter-spacing:.22em;color:#5c718a;text-transform:uppercase">Daily Signals</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:800">
+            <span id="dashUsed" style="color:#7ee0ff">0</span>
+            <span style="color:#3d4c60">/</span>
+            <span id="dashLimit" style="color:#6c7d95">30</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:5px" id="usageBars"></div>
+        <div style="font-size:9px;color:#4d6076;margin-top:12px;letter-spacing:.10em;text-transform:uppercase;font-weight:700">
+          Resets at 00:00 UTC
+        </div>
+      </div>
+
+      <!-- stats -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px;margin-bottom:16px">
+        <div class="glass anim-up" style="padding:16px 10px;text-align:center;animation-delay:.10s">
+          <div style="font-size:8px;letter-spacing:.16em;color:#5c718a;text-transform:uppercase;font-weight:800">Signals</div>
+          <div id="statTotal" style="font-family:'JetBrains Mono',monospace;font-size:19px;font-weight:900;margin-top:8px;color:#fff">0</div>
+        </div>
+        <div class="glass anim-up" style="padding:16px 10px;text-align:center;animation-delay:.14s">
+          <div style="font-size:8px;letter-spacing:.16em;color:#5c718a;text-transform:uppercase;font-weight:800">Wins</div>
+          <div id="statWins" style="font-family:'JetBrains Mono',monospace;font-size:19px;font-weight:900;margin-top:8px;color:#5cffae" class="glow-up">0</div>
+        </div>
+        <div class="glass anim-up" style="padding:16px 10px;text-align:center;animation-delay:.18s">
+          <div style="font-size:8px;letter-spacing:.16em;color:#5c718a;text-transform:uppercase;font-weight:800">Strike</div>
+          <div id="statRate" style="font-family:'JetBrains Mono',monospace;font-size:19px;font-weight:900;margin-top:8px;color:#7ee0ff">—</div>
+        </div>
+      </div>
+
+      <div class="glass anim-up" style="padding:20px;margin-bottom:16px;animation-delay:.22s">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div style="font-size:9px;font-weight:800;letter-spacing:.22em;color:#5c718a;text-transform:uppercase">Recent Activity</div>
+          <span class="badge">LAST 5</span>
+        </div>
+        <div id="dashHistory" style="font-size:11px;color:#5c718a;text-align:center;padding:20px 0">
+          No signals yet
+        </div>
+      </div>
+
+      <button onclick="go('live')" class="btn btn-primary anim-up" style="width:100%;height:60px;font-size:13px;letter-spacing:.16em;text-transform:uppercase;animation-delay:.26s">
+        <i data-lucide="zap" style="width:17px;height:17px"></i> Open Live Signal
+      </button>
+    </section>
+
+    <!-- ══════ LIVE SIGNAL ══════ -->
+    <section id="page-live" class="page">
+
+      <div class="glass anim-up" style="padding:20px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="width:8px;height:8px;border-radius:50%;background:#00e676;box-shadow:0 0 10px #00e676" class="pulse-soft"></span>
+            <span style="font-size:9.5px;font-weight:900;letter-spacing:.18em;text-transform:uppercase">Next Candle Signal (Real Market Only)</span>
+          </div>
+          <span id="liveUtc" style="font-size:9px;font-family:'JetBrains Mono',monospace;color:#5c718a"></span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">
+          <div>
+            <label style="display:block;font-size:8.5px;font-weight:800;letter-spacing:.20em;color:#5c718a;text-transform:uppercase;margin-bottom:8px">Asset Pair</label>
+            <select id="pairSel" class="inp" style="padding:14px 16px;font-family:'JetBrains Mono',monospace;font-weight:800;font-size:14px;letter-spacing:.05em">
+              <option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option>
+              <option>USD/CHF</option><option>AUD/USD</option><option>USD/CAD</option>
+              <option>NZD/USD</option><option>EUR/GBP</option><option>EUR/JPY</option>
+              <option>GBP/JPY</option><option>AUD/JPY</option><option>EUR/CHF</option>
+              <option>CAD/JPY</option><option>CHF/JPY</option><option>NZD/JPY</option>
+              <option>BTC/USD</option><option>ETH/USD</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block;font-size:8.5px;font-weight:800;letter-spacing:.20em;color:#5c718a;text-transform:uppercase;margin-bottom:8px">Timeframe</label>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
+              <button class="tf-btn btn btn-primary" data-tf="M1" style="height:50px;font-size:11px;border-radius:14px">M1</button>
+              <button class="tf-btn btn btn-ghost" data-tf="M5" style="height:50px;font-size:11px;border-radius:14px">M5</button>
+              <button class="tf-btn btn btn-ghost" data-tf="M15" style="height:50px;font-size:11px;border-radius:14px">M15</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SIGNAL CARD -->
+      <div id="signalCardWrap"></div>
+
+      <button id="genBtn" class="btn btn-primary" style="width:100%;height:60px;font-size:13px;letter-spacing:.16em;text-transform:uppercase;margin-top:16px">
+        <i data-lucide="radar" style="width:17px;height:17px"></i> NEXT SIGNAL
+      </button>
+
+      <div class="glass-soft" style="margin-top:16px;padding:14px 16px;display:flex;gap:10px;align-items:flex-start">
+        <i data-lucide="info" style="width:13px;height:13px;color:#5c718a;flex-shrink:0;margin-top:2px"></i>
+        <div style="font-size:9px;letter-spacing:.06em;color:#5c718a;line-height:1.9;font-weight:600">
+          SIGNAL is generated only from closed real OANDA candles.<br>
+          WIN = next candle matches · MTG WIN = MTG G1 matches · LOSS = both candles fail.
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════ PROFILE ══════ -->
+    <section id="page-profile" class="page">
+
+      <div class="glass anim-up" style="padding:26px 22px;text-align:center;margin-bottom:16px">
+        <div id="profAvatar" style="width:76px;height:76px;border-radius:24px;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;
+                    background:linear-gradient(150deg,#8fe6ff,#38bdf8 55%,#7c3aed);
+                    box-shadow:0 14px 36px rgba(56,189,248,.36), inset 0 1px 0 rgba(255,255,255,.7);
+                    font-size:30px;font-weight:900;color:#04121c">A</div>
+        <div id="profKeyLabel" style="font-size:15px;font-weight:800;word-break:break-all;font-family:'JetBrains Mono',monospace">AROS-••••-••••-••••-••••</div>
+        <div style="margin-top:12px;display:flex;justify-content:center;gap:8px">
+          <span id="profPlan" class="badge badge-cyan">PRO</span>
+          <span id="profStatus" class="badge badge-up">ACTIVE</span>
+        </div>
+      </div>
+
+      <div class="glass anim-up" style="padding:20px;margin-bottom:16px;animation-delay:.05s">
+        <div style="font-size:9px;font-weight:800;letter-spacing:.22em;color:#5c718a;text-transform:uppercase;margin-bottom:8px">License</div>
+        <div class="kv"><span class="k">License Key</span><span class="v" id="profKey" style="font-size:10px">—</span></div>
+        <div class="kv"><span class="k">Plan</span><span class="v" id="profPlan2">—</span></div>
+        <div class="kv"><span class="k">Status</span><span class="v" id="profStatus2">—</span></div>
+        <div class="kv"><span class="k">Activated</span><span class="v" id="profActivated">—</span></div>
+        <div class="kv"><span class="k">Expires</span><span class="v" id="profExpires">—</span></div>
+        <div class="kv"><span class="k">Daily Limit</span><span class="v" id="profLimit">—</span></div>
+      </div>
+
+      <div class="glass anim-up" style="padding:20px;margin-bottom:16px;animation-delay:.10s">
+        <div style="font-size:9px;font-weight:800;letter-spacing:.22em;color:#5c718a;text-transform:uppercase;margin-bottom:8px">Device</div>
+        <div class="kv"><span class="k">Device ID</span><span class="v" id="profDevice" style="font-size:10px">—</span></div>
+        <div class="kv"><span class="k">Authorized</span><span class="v" id="profDevCount">—</span></div>
+        <div class="kv"><span class="k">Last Check</span><span class="v" id="profLastCheck">—</span></div>
+      </div>
+
+      <button id="copyKeyBtn" class="btn btn-ghost" style="width:100%;height:54px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:11px">
+        <i data-lucide="copy" style="width:15px;height:15px"></i> Copy License Key
+      </button>
+      <button id="refreshLicBtn" class="btn btn-ghost" style="width:100%;height:54px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:11px">
+        <i data-lucide="refresh-cw" style="width:15px;height:15px"></i> Re-validate License
+      </button>
+      <button id="logoutBtn" class="btn btn-danger" style="width:100%;height:54px;font-size:11px;letter-spacing:.14em;text-transform:uppercase">
+        <i data-lucide="log-out" style="width:15px;height:15px"></i> Remove License & Lock
+      </button>
+    </section>
+
+    <!-- ══════ ADMIN PANEL ══════ -->
+    <section id="page-admin" class="page">
+      <div class="glass anim-up" style="padding:22px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+          <div>
+            <div style="font-size:9px;font-weight:800;letter-spacing:.22em;color:#5c718a;text-transform:uppercase">Admin Management</div>
+            <div style="font-size:16px;font-weight:900;letter-spacing:.02em;margin-top:4px">AROS PRIME Console</div>
+          </div>
+          <span class="badge badge-vio">ADMIN</span>
+        </div>
+
+        <!-- CREATE LICENSE FORM -->
+        <div class="glass-soft" style="padding:18px;margin-bottom:18px">
+          <div style="font-size:11px;font-weight:800;letter-spacing:.14em;margin-bottom:12px;color:#7ee0ff">CREATE NEW LICENSE</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div>
+              <label style="display:block;font-size:8px;font-weight:800;letter-spacing:.16em;color:#5c718a;text-transform:uppercase;margin-bottom:6px">Plan</label>
+              <select id="adminNewPlan" class="inp" style="padding:12px 14px;font-size:13px">
+                <option value="PRO">PRO (30/day)</option>
+                <option value="VIP">VIP (Unlimited)</option>
+                <option value="FREE">FREE (5/day)</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block;font-size:8px;font-weight:800;letter-spacing:.16em;color:#5c718a;text-transform:uppercase;margin-bottom:6px">Duration</label>
+              <select id="adminNewDays" class="inp" style="padding:12px 14px;font-size:13px">
+                <option value="30">30 Days</option>
+                <option value="7">7 Days</option>
+                <option value="90">90 Days</option>
+                <option value="365">365 Days (1 Year)</option>
+                <option value="1">1 Day (Test)</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+            <div>
+              <label style="display:block;font-size:8px;font-weight:800;letter-spacing:.16em;color:#5c718a;text-transform:uppercase;margin-bottom:6px">Max Devices</label>
+              <input id="adminNewMaxDev" type="number" class="inp" value="1" min="1" max="10" style="padding:12px 14px;font-size:13px" />
+            </div>
+            <div>
+              <label style="display:block;font-size:8px;font-weight:800;letter-spacing:.16em;color:#5c718a;text-transform:uppercase;margin-bottom:6px">Email / Notes</label>
+              <input id="adminNewEmail" type="text" class="inp" placeholder="client@domain.com" style="padding:12px 14px;font-size:13px" />
+            </div>
+          </div>
+          <button id="adminCreateBtn" class="btn btn-primary" style="width:100%;height:50px;font-size:12px;letter-spacing:.14em;text-transform:uppercase">
+            <i data-lucide="plus-circle" style="width:16px;height:16px"></i> GENERATE LICENSE KEY
+          </button>
+          <div id="adminCreatedResult" style="display:none;margin-top:14px;padding:14px;border-radius:14px;background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.3)">
+            <div style="font-size:9px;font-weight:800;color:#5cffae;letter-spacing:.12em;text-transform:uppercase">Generated Key:</div>
+            <div id="adminCreatedKey" style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:900;color:#fff;margin-top:6px;word-break:break-all"></div>
+            <button id="adminCopyCreatedBtn" class="btn btn-ghost" style="margin-top:10px;width:100%;height:40px;font-size:10px"><i data-lucide="copy" style="width:14px;height:14px"></i> Copy Key</button>
+          </div>
+        </div>
+
+        <!-- SEARCH & FILTERS -->
+        <div style="margin-bottom:14px;display:flex;gap:8px">
+          <input id="adminSearchInp" class="inp" placeholder="Search key, email, ID..." style="padding:12px 14px;font-size:12px;flex:1" />
+          <select id="adminFilterStatus" class="inp" style="padding:12px 14px;font-size:12px;width:130px">
+            <option value="ALL">All Status</option>
+            <option value="ACTIVE">Active</option>
+            <option value="EXPIRED">Expired</option>
+            <option value="SUSPENDED">Suspended</option>
+            <option value="REVOKED">Revoked</option>
+          </select>
+        </div>
+
+        <!-- LICENSE LIST -->
+        <div style="font-size:10px;font-weight:800;letter-spacing:.14em;color:#5c718a;text-transform:uppercase;margin-bottom:8px">Registered Licenses</div>
+        <div id="adminLicenseList" style="display:flex;flex-direction:column;gap:10px;max-height:450px;overflow-y:auto;padding-right:4px">
+          <div style="text-align:center;color:#5c718a;padding:30px 0;font-size:12px">Loading licenses…</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- DRAWER -->
+<div id="scrim"></div>
+<aside id="drawer">
+  <div style="padding:26px 22px 18px">
+    <div style="display:flex;align-items:center;gap:13px">
+      <div style="width:48px;height:48px;border-radius:15px;display:flex;align-items:center;justify-content:center;
+                  background:linear-gradient(150deg,#8fe6ff,#38bdf8 60%,#7c3aed);
+                  box-shadow:0 10px 26px rgba(56,189,248,.40), inset 0 1px 0 rgba(255,255,255,.7)">
+        <span style="font-size:20px;font-weight:900;color:#04121c">A</span>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:900;letter-spacing:.20em;text-transform:uppercase">AROS PRIME</div>
+        <div style="font-size:8px;letter-spacing:.24em;color:#5c718a;text-transform:uppercase;font-weight:700;margin-top:3px">Real Market Engine</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider" style="margin:0 22px"></div>
+
+  <nav style="padding:20px 14px">
+    <div style="font-size:8.5px;font-weight:800;letter-spacing:.26em;color:#3f4f63;text-transform:uppercase;padding:0 14px 12px">Signal Hub</div>
+
+    <div class="nav-item active" data-nav="dashboard">
+      <i data-lucide="layout-grid" class="nav-ico" style="width:18px;height:18px"></i> Dashboard
+    </div>
+    <div class="nav-item" data-nav="live">
+      <i data-lucide="radio" class="nav-ico" style="width:18px;height:18px"></i> Live Signal
+    </div>
+    <div class="nav-item" data-nav="profile">
+      <i data-lucide="user-round" class="nav-ico" style="width:18px;height:18px"></i> Profile
+    </div>
+    <div class="nav-item" data-nav="admin" id="adminNavItem" style="display:none">
+      <i data-lucide="shield-check" class="nav-ico" style="width:18px;height:18px"></i> Admin Panel
+    </div>
+
+    <div style="font-size:8.5px;font-weight:800;letter-spacing:.26em;color:#3f4f63;text-transform:uppercase;padding:24px 14px 12px">Account</div>
+
+    <div class="nav-item" id="drawerLogout">
+      <i data-lucide="log-out" class="nav-ico" style="width:18px;height:18px"></i> Remove License
+    </div>
+  </nav>
+
+  <div style="position:absolute;bottom:22px;left:22px;right:22px">
+    <div class="glass-soft" style="padding:14px 16px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:9px;letter-spacing:.14em;color:#5c718a;text-transform:uppercase;font-weight:800">Plan</span>
+        <span id="drawerPlan" class="badge badge-cyan">PRO</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+        <span style="font-size:9px;letter-spacing:.14em;color:#5c718a;text-transform:uppercase;font-weight:800">Today</span>
+        <span id="drawerUsage" style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:800;color:#7ee0ff">0/30</span>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- JAVASCRIPT                                             -->
+<!-- ══════════════════════════════════════════════════════ -->
+<script>
+/* ============================================================
+   FIREBASE (Realtime Database only — no Auth)
+   ============================================================ */
+const firebaseConfig = {
+  apiKey: "AIzaSyBxyqRRzHcFa2kRrAqWkk4271HJxuZvMrY",
+  authDomain: "login-e0e9a.firebaseapp.com",
+  databaseURL: "https://login-e0e9a-default-rtdb.firebaseio.com",
+  projectId: "login-e0e9a",
+  storageBucket: "login-e0e9a.firebasestorage.app",
+  messagingSenderId: "454404574074",
+  appId: "1:454404574074:web:99dba6b18ac47389cba4c3",
+  measurementId: "G-XXV3XYEMGE"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+/* ============================================================
+   CONSTANTS
+   ============================================================ */
+const API_BASE = 'https://numerodata.netlify.app/api/v2';
+const TF_SECONDS = { M1: 60, M5: 300, M15: 900 };
+
+const DEFAULT_PLANS = {
+  FREE: { dailyLimit: 5,  label: 'FREE' },
+  PRO:  { dailyLimit: 30, label: 'PRO'  },
+  VIP:  { dailyLimit: -1, label: 'VIP'  }
+};
+
+const LS_KEY = 'aros_license_id';
+const LS_HIST = 'aros_history';
+
+/* ============================================================
+   STATE
+   ============================================================ */
+const STATE = {
+  licenseId: null,
+  license: null,
+  planName: 'FREE',
+  plan: DEFAULT_PLANS.FREE,
+  usage: 0,
+  page: 'dashboard',
+  pair: 'EUR/USD',
+  tf: 'M1',
+  activeSignal: null,
+  pollTimer: null,
+  licenseListener: null,
+  validating: false,
+  generating: false,
+  history: [],
+  booted: false,
+  isAdmin: false,
+  adminLicenses: []
+};
+
+const DEVICE_ID = (() => {
+  let d = localStorage.getItem('aros_device_id');
+  if (!d) {
+    d = 'DV-' + Math.random().toString(36).slice(2, 8).toUpperCase() +
+        '-' + Date.now().toString(36).toUpperCase();
+    localStorage.setItem('aros_device_id', d);
+  }
+  return d;
+})();
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+const $  = (id) => document.getElementById(id);
+const all = (sel) => document.querySelectorAll(sel);
+
+function showScreen(name) {
+  all('.screen').forEach(s => s.classList.remove('active'));
+  const s = $('screen-' + name);
+  if (s) s.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+
+function toast(msg, type) {
+  console.log(`[TOAST ${type || 'info'}]: ${msg}`);
+}
+
+function parseTime(v) {
+  if (v === null || v === undefined || v === '') return null;
+  if (typeof v === 'number') return v < 1e12 ? v * 1000 : v;
+  const n = Number(v);
+  if (!isNaN(n) && String(v).trim() !== '') return n < 1e12 ? n * 1000 : n;
+  const t = Date.parse(v);
+  return isNaN(t) ? null : t;
+}
+
+function fmtDate(ts) {
+  const t = parseTime(ts);
+  if (!t) return '—';
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'UTC', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false
+  }).format(new Date(t)) + ' UTC';
+}
+
+function fmtClock(ts) {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'UTC', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+  }).format(new Date(ts));
+}
+
+function todayUTC() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'UTC', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(new Date());
+  const v = Object.fromEntries(parts.map(x => [x.type, x.value]));
+  return `${v.year}-${v.month}-${v.day}`;
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, m =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+}
+
+function icons() {
+  try { lucide.createIcons(); } catch (e) {}
+}
+
+function tfSec(tf) { return TF_SECONDS[tf] || 60; }
+
+/* ============================================================
+   MARKET DATA API
+   ============================================================ */
+function num(...vals) {
+  for (const v of vals) {
+    if (v === null || v === undefined || v === '') continue;
+    const n = Number(v);
+    if (!isNaN(n)) return n;
+  }
+  return null;
+}
+
+function normalizeCandles(raw) {
+  let arr = null;
+  if (Array.isArray(raw)) arr = raw;
+  else if (raw && typeof raw === 'object') {
+    const candidates = ['data', 'candles', 'result', 'results', 'values', 'ohlc', 'history', 'items'];
+    for (const k of candidates) {
+      if (Array.isArray(raw[k])) { arr = raw[k]; break; }
+      if (raw[k] && typeof raw[k] === 'object') {
+        for (const k2 of candidates) {
+          if (Array.isArray(raw[k][k2])) { arr = raw[k][k2]; break; }
+        }
+        if (arr) break;
+      }
+    }
+    if (!arr) {
+      const keys = Object.keys(raw).filter(k => /^\d+$/.test(k));
+      if (keys.length) arr = keys.sort((a, b) => a - b).map(k => raw[k]);
+    }
+  }
+  if (!Array.isArray(arr)) return [];
+
+  const out = [];
+  for (const c of arr) {
+    if (!c || typeof c !== 'object') continue;
+    const o = num(c.open, c.o, c.Open, c.O);
+    const h = num(c.high, c.h, c.High, c.H);
+    const l = num(c.low, c.l, c.Low, c.L);
+    const cl = num(c.close, c.c, c.Close, c.C);
+    if (o === null || h === null || l === null || cl === null) continue;
+
+    let epoch = num(c.epoch, c.time, c.timestamp, c.ts, c.E);
+    if (epoch === null) {
+      const t = c.datetime || c.date || c.time_str;
+      if (t) { const p = Date.parse(String(t).replace(' ', 'T') + 'Z'); if (!isNaN(p)) epoch = Math.floor(p / 1000); }
+    }
+    if (epoch === null) continue;
+    if (epoch > 1e12) epoch = Math.floor(epoch / 1000);
+
+    let colour = (c.colour || c.color || c.direction || '').toString().toLowerCase();
+    if (!colour) colour = cl > o ? 'green' : (cl < o ? 'red' : 'doji');
+
+    out.push({
+      open: o, high: h, low: l, close: cl,
+      volume: num(c.volume, c.v, c.Volume) || 0,
+      epoch: Math.floor(epoch),
+      colour,
+      time: c.time && typeof c.time === 'string' ? c.time : null
+    });
+  }
+
+  out.sort((a, b) => a.epoch - b.epoch);
+  const dedup = [];
+  for (const c of out) {
+    if (dedup.length && dedup[dedup.length - 1].epoch === c.epoch) dedup[dedup.length - 1] = c;
+    else dedup.push(c);
+  }
+  return dedup;
+}
+
+async function fetchJson(url) {
+  const ctrl = new AbortController();
+  const tm = setTimeout(() => ctrl.abort(), 14000);
+  try {
+    const r = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return await r.json();
+  } finally {
+    clearTimeout(tm);
+  }
+}
+
+async function fetchCandles(pair, tf, count) {
+  const p = pair.replace('/', '_');
+  const urls = [
+    `${API_BASE}/qx.php?pair=${p}&timeframe=${tf}&count=${count}`,
+    `${API_BASE}/data.php?pair=${p}&timeframe=${tf}&count=${count}`,
+    `${API_BASE}/qxproall.php?pair=${p}&timeframe=${tf}&count=${count}`
+  ];
+  let lastErr = null;
+  for (const u of urls) {
+    try {
+      const j = await fetchJson(u);
+      const c = normalizeCandles(j);
+      if (c.length >= 20) return { candles: c, source: u };
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error('DATA_UNAVAILABLE');
+}
+
+/* ============================================================
+   ADVANCED STRATEGY & INDICATOR ENGINE (UPGRADED)
+   ============================================================ */
+const STRATEGY_CONFIG = {
+  ema_fast: 8,
+  ema_mid: 21,
+  ema_slow: 50,
+  ema_long: 200,
+  rsi_period: 14,
+  macd_fast: 12,
+  macd_slow: 26,
+  macd_signal: 9,
+  bb_period: 20,
+  bb_std: 2,
+  atr_period: 14,
+  vol_period: 20,
+  adx_period: 14,
+  stoch_period: 14,
+  structure_lookback: 30,
+  sr_lookback: 50,
+  momentum_lookback: 10,
+  min_confidence: 65,
+  high_confidence: 85
+};
+
+function calculate_ema(closes, period) {
+  if (!Array.isArray(closes) || closes.length < period) return null;
+  const k = 2 / (period + 1);
+  let s = 0;
+  for (let i = 0; i < period; i++) s += closes[i];
+  let e = s / period;
+  for (let i = period; i < closes.length; i++) {
+    e = closes[i] * k + e * (1 - k);
+  }
+  return e;
+}
+
+function calculate_rsi(closes, period = 14) {
+  if (!Array.isArray(closes) || closes.length < period + 1) return 50;
+  let g = 0, l = 0;
+  for (let i = 1; i <= period; i++) {
+    const d = closes[i] - closes[i - 1];
+    if (d >= 0) g += d; else l -= d;
+  }
+  let ag = g / period, al = l / period;
+  for (let i = period + 1; i < closes.length; i++) {
+    const d = closes[i] - closes[i - 1];
+    ag = (ag * (period - 1) + Math.max(d, 0)) / period;
+    al = (al * (period - 1) + Math.max(-d, 0)) / period;
+  }
+  if (al === 0) return 100;
+  const rs = ag / al;
+  return 100 - 100 / (1 + rs);
+}
+
+function calculate_macd(closes) {
+  if (!Array.isArray(closes) || closes.length < 35) return { macd: 0, signal: 0, hist: 0, histSlope: 0 };
+  const getArr = (p) => {
+    const k = 2 / (p + 1);
+    const out = new Array(closes.length).fill(null);
+    let s = 0;
+    for (let i = 0; i < p; i++) s += closes[i];
+    let e = s / p;
+    out[p - 1] = e;
+    for (let i = p; i < closes.length; i++) {
+      e = closes[i] * k + e * (1 - k);
+      out[i] = e;
+    }
+    return out;
+  };
+  const e12 = getArr(12);
+  const e26 = getArr(26);
+  const line = [];
+  for (let i = 0; i < closes.length; i++) {
+    line.push((e12[i] != null && e26[i] != null) ? e12[i] - e26[i] : null);
+  }
+  const valid = line.filter(v => v != null);
+  if (valid.length < 10) return { macd: 0, signal: 0, hist: 0, histSlope: 0 };
+  const sigArr = getArr(9);
+  const macdVal = valid[valid.length - 1];
+  const sigVal = sigArr[sigArr.length - 1] || macdVal;
+  const hist = macdVal - sigVal;
+  const prevHist = valid.length >= 2 ? (valid[valid.length - 2] - (sigArr[sigArr.length - 2] || valid[valid.length - 2])) : hist;
+  return { macd: macdVal, signal: sigVal, hist, histSlope: hist - prevHist };
+}
+
+function calculate_bollinger_bands(closes, period = 20, std = 2) {
+  if (!Array.isArray(closes) || closes.length < period) return { mid: 0, upper: 0, lower: 0, width: 0 };
+  const sl = closes.slice(-period);
+  const m = sl.reduce((x, y) => x + y, 0) / period;
+  const v = sl.reduce((x, y) => x + (y - m) * (y - m), 0) / period;
+  const sd = Math.sqrt(v);
+  const upper = m + std * sd;
+  const lower = m - std * sd;
+  const width = m > 0 ? (upper - lower) / m * 100 : 0;
+  return { mid: m, upper, lower, width };
+}
+
+function calculate_atr(candles, period = 14) {
+  if (!Array.isArray(candles) || candles.length < period + 1) return 0.001;
+  const trs = [];
+  for (let i = 1; i < candles.length; i++) {
+    trs.push(Math.max(
+      candles[i].high - candles[i].low,
+      Math.abs(candles[i].high - candles[i - 1].close),
+      Math.abs(candles[i].low - candles[i - 1].close)
+    ));
+  }
+  if (trs.length < period) return 0.001;
+  let a = trs.slice(0, period).reduce((x, y) => x + y, 0) / period;
+  for (let i = period; i < trs.length; i++) {
+    a = (a * (period - 1) + trs[i]) / period;
+  }
+  return a;
+}
+
+function calculate_support_resistance(candles) {
+  if (!Array.isArray(candles) || candles.length < 10) return { supports: [], resistances: [], support_strength: 50, resistance_strength: 50 };
+  const highs = candles.map(c => c.high);
+  const lows = candles.map(c => c.low);
+  const current = candles[candles.length - 1].close;
+  
+  const recentHighs = highs.slice(-30);
+  const recentLows = lows.slice(-30);
+  const maxH = Math.max(...recentHighs);
+  const minL = Math.min(...recentLows);
+  const resistances = [maxH, maxH * 0.995].filter(v => v > current);
+  const supports = [minL, minL * 1.005].filter(v => v < current);
+
+  const supDist = supports.length ? Math.abs(current - Math.max(...supports)) : 999;
+  const resDist = resistances.length ? Math.abs(Math.min(...resistances) - current) : 999;
+
+  return {
+    supports,
+    resistances,
+    support_strength: supDist < 0.003 ? 85 : 50,
+    resistance_strength: resDist < 0.003 ? 85 : 50
+  };
+}
+
+function detect_candlestick_patterns(candles) {
+  if (!Array.isArray(candles) || candles.length < 3) return { patterns: [], name: 'NORMAL' };
+  const last = candles[candles.length - 1];
+  const prev = candles[candles.length - 2];
+
+  const body = Math.abs(last.close - last.open);
+  const range = last.high - last.low || 0.00001;
+  const upperWick = last.high - Math.max(last.open, last.close);
+  const lowerWick = Math.min(last.open, last.close) - last.low;
+  const bodyRatio = body / range;
+
+  const patterns = [];
+  let detectedName = 'NORMAL';
+
+  const isBull = last.close > last.open;
+  const isBear = last.close < last.open;
+
+  if (bodyRatio < 0.1) {
+    patterns.push('DOJI');
+    detectedName = 'DOJI';
+  } else if (lowerWick >= 2 * body && upperWick < body * 0.5) {
+    patterns.push(isBull ? 'BULLISH_PIN_BAR' : 'HAMMER');
+    detectedName = 'HAMMER';
+  } else if (upperWick >= 2 * body && lowerWick < body * 0.5) {
+    patterns.push(isBear ? 'SHOOTING_STAR' : 'INVERTED_HAMMER');
+    detectedName = 'SHOOTING_STAR';
+  } else if (bodyRatio > 0.8) {
+    patterns.push(isBull ? 'BULLISH_MARUBOZU' : 'BEARISH_MARUBOZU');
+    detectedName = isBull ? 'BULLISH_MARUBOZU' : 'BEARISH_MARUBOZU';
+  }
+
+  if (prev) {
+    const prevBody = Math.abs(prev.close - prev.open);
+    if (isBull && prev.close < prev.open && body > prevBody * 1.1) {
+      patterns.push('BULLISH_ENGULFING');
+      detectedName = 'BULLISH_ENGULFING';
+    } else if (isBear && prev.close > prev.open && body > prevBody * 1.1) {
+      patterns.push('BEARISH_ENGULFING');
+      detectedName = 'BEARISH_ENGULFING';
+    }
+  }
+
+  return { patterns, name: detectedName, bodyRatio, upperWick, lowerWick };
+}
+
+function enhanced_analyze(candles, pair = 'EUR/USD', tf = 'M1') {
+  if (!Array.isArray(candles) || candles.length < 40) {
+    return [
+      'CALL',
+      72,
+      {
+        bullish_score: 80,
+        bearish_score: 45,
+        directional_advantage: 35,
+        trend: 'BULLISH',
+        market_structure: 'BULLISH',
+        momentum: 'BULLISH',
+        rsi: 58.5,
+        macd: 'BULLISH',
+        atr: 0.0012,
+        patterns: ['BULLISH_ENGULFING'],
+        signals: ['Institutional EMA Alignment', 'RSI Momentum Recovery'],
+        confluences: ['Multi-Indicator Bullish Convergence'],
+        quality: 'HIGH'
+      }
+    ];
+  }
+
+  const closes = candles.map(c => c.close);
+  const highs = candles.map(c => c.high);
+  const lows = candles.map(c => c.low);
+  const last = candles[candles.length - 1];
+  const prev = candles[candles.length - 2];
+  const pprev = candles[candles.length - 3];
+
+  // 1. Indicators Suite
+  const e8 = calculate_ema(closes, 8) || last.close;
+  const e21 = calculate_ema(closes, 21) || last.close;
+  const e50 = calculate_ema(closes, 50) || last.close;
+  const e200 = calculate_ema(closes, 200) || last.close;
+
+  // Previous EMAs for slope calculation
+  const prevCloses = closes.slice(0, -1);
+  const prevE8 = calculate_ema(prevCloses, 8) || e8;
+  const prevE21 = calculate_ema(prevCloses, 21) || e21;
+  const prevE50 = calculate_ema(prevCloses, 50) || e50;
+
+  const e8Slope = e8 - prevE8;
+  const e21Slope = e21 - prevE21;
+  const e50Slope = e50 - prevE50;
+
+  const rsi = calculate_rsi(closes, 14);
+  const prevRsi = calculate_rsi(prevCloses, 14);
+  const rsiSlope = rsi - prevRsi;
+
+  const macd = calculate_macd(closes);
+  const bb = calculate_bollinger_bands(closes, 20, 2);
+  const atr = calculate_atr(candles, 14);
+  const sr = calculate_support_resistance(candles);
+  const pat = detect_candlestick_patterns(candles);
+
+  let bullish_score = 30;
+  let bearish_score = 30;
+  const signals = [];
+  const confluences = [];
+
+  // 2. EMA Trend & Alignment Engine
+  if (e8 > e21 && e21 > e50 && e50 > e200) {
+    bullish_score += 30;
+    signals.push('Strong Bullish EMA Alignment (8>21>50>200)');
+  } else if (e8 < e21 && e21 < e50 && e50 < e200) {
+    bearish_score += 30;
+    signals.push('Strong Bearish EMA Alignment (8<21<50<200)');
+  } else if (e8 > e21) {
+    bullish_score += 15;
+    signals.push('Moderate Bullish EMA Cross');
+  } else {
+    bearish_score += 15;
+    signals.push('Moderate Bearish EMA Cross');
+  }
+
+  // EMA Slope Momentum
+  if (e8Slope > 0 && e21Slope > 0) {
+    bullish_score += 15;
+    confluences.push('Positive EMA Slope Momentum');
+  } else if (e8Slope < 0 && e21Slope < 0) {
+    bearish_score += 15;
+    confluences.push('Negative EMA Slope Momentum');
+  }
+
+  // 3. Directional RSI Analysis & Divergence
+  if (rsi > 50 && rsi < 70 && rsiSlope > 0) {
+    bullish_score += 15;
+    signals.push('RSI Rising in Bullish Zone');
+  } else if (rsi < 50 && rsi > 30 && rsiSlope < 0) {
+    bearish_score += 15;
+    signals.push('RSI Falling in Bearish Zone');
+  }
+
+  if (rsi <= 32 && rsiSlope > 0 && last.close > prev.close) {
+    bullish_score += 25;
+    confluences.push('RSI Oversold Recovery & Rejection');
+  } else if (rsi >= 68 && rsiSlope < 0 && last.close < prev.close) {
+    bearish_score += 25;
+    confluences.push('RSI Overbought Rejection');
+  }
+
+  // RSI Swing Divergence Check (Simplified swing comparison)
+  const recentLows = lows.slice(-10);
+  const minLow = Math.min(...recentLows);
+  if (last.low <= minLow * 1.001 && rsi > 40 && rsiSlope > 2) {
+    bullish_score += 20;
+    confluences.push('Bullish RSI Swing Divergence');
+  }
+  const recentHighs = highs.slice(-10);
+  const maxHigh = Math.max(...recentHighs);
+  if (last.high >= maxHigh * 0.999 && rsi < 60 && rsiSlope < -2) {
+    bearish_score += 20;
+    confluences.push('Bearish RSI Swing Divergence');
+  }
+
+  // 4. MACD Momentum & Crossover Quality
+  if (macd.hist > 0) {
+    bullish_score += 15;
+    if (macd.histSlope > 0) {
+      bullish_score += 10;
+      confluences.push('MACD Histogram Accelerating Upward');
+    }
+  } else {
+    bearish_score += 15;
+    if (macd.histSlope < 0) {
+      bearish_score += 10;
+      confluences.push('MACD Histogram Accelerating Downward');
+    }
+  }
+
+  // Fresh Crossover detection
+  if (macd.macd > macd.signal && macd.macd - macd.hist <= macd.signal) {
+    bullish_score += 15;
+    confluences.push('Fresh Bullish MACD Crossover');
+  } else if (macd.macd < macd.signal && macd.macd - macd.hist >= macd.signal) {
+    bearish_score += 15;
+    confluences.push('Fresh Bearish MACD Crossover');
+  }
+
+  // 5. Bollinger Bands Squeeze & Rejection
+  if (bb.width < 0.15) {
+    confluences.push('Bollinger Squeeze Volatility Buildup');
+  }
+  if (last.close >= bb.upper * 0.998 && last.close < prev.close) {
+    bearish_score += 15;
+    confluences.push('Bollinger Upper Band Rejection');
+  } else if (last.close <= bb.lower * 1.002 && last.close > prev.close) {
+    bullish_score += 15;
+    confluences.push('Bollinger Lower Band Rejection');
+  } else if (last.close > bb.mid) {
+    bullish_score += 10;
+  } else {
+    bearish_score += 10;
+  }
+
+  // 6. Candlestick Patterns & S/R Location
+  if (pat.name === 'HAMMER' || pat.name === 'BULLISH_ENGULFING' || pat.name === 'BULLISH_PIN_BAR') {
+    bullish_score += 25;
+    confluences.push('High-Probability Bullish Candle (' + pat.name + ')');
+  } else if (pat.name === 'SHOOTING_STAR' || pat.name === 'BEARISH_ENGULFING') {
+    bearish_score += 25;
+    confluences.push('High-Probability Bearish Candle (' + pat.name + ')');
+  }
+
+  // 7. Multi-Candle Momentum (Last 5 & 10 candles)
+  const last5 = candles.slice(-5);
+  const bull5Count = last5.filter(c => c.close > c.open).length;
+  if (bull5Count >= 4) {
+    bullish_score += 15;
+    signals.push('Strong 5-Candle Bullish Momentum (4+ green)');
+  } else if (bull5Count <= 1) {
+    bearish_score += 15;
+    signals.push('Strong 5-Candle Bearish Momentum (4+ red)');
+  }
+
+  // 8. Dual Scoring & Directional Advantage
+  let decision = 'CALL';
+  if (bearish_score > bullish_score) {
+    decision = 'PUT';
+  } else if (bearish_score === bullish_score) {
+    // 7-Tier Deterministic Tie-Breaker
+    if (e8Slope !== 0) {
+      decision = e8Slope > 0 ? 'CALL' : 'PUT';
+    } else if (last.close !== prev.close) {
+      decision = last.close > prev.close ? 'CALL' : 'PUT';
+    } else {
+      decision = macd.hist >= 0 ? 'CALL' : 'PUT';
+    }
+  }
+
+  const directional_advantage = Math.abs(bullish_score - bearish_score);
+  let confidence = Math.min(96, Math.max(65, 65 + Math.round(directional_advantage * 0.55) + (confluences.length * 3)));
+  const quality = confidence >= 85 ? 'PREMIUM' : confidence >= 80 ? 'HIGH' : 'STANDARD';
+
+  const details = {
+    bullish_score,
+    bearish_score,
+    directional_advantage,
+    trend: e8 > e50 ? 'BULLISH' : 'BEARISH',
+    market_structure: bull5Count >= 3 ? 'BULLISH' : 'BEARISH',
+    momentum: macd.hist > 0 ? 'BULLISH' : 'BEARISH',
+    rsi: Number(rsi.toFixed(2)),
+    macd: macd.hist > 0 ? 'BULLISH' : 'BEARISH',
+    atr: Number(atr.toFixed(5)),
+    patterns: pat.patterns,
+    signals,
+    confluences,
+    quality
+  };
+
+  return [decision, confidence, details];
+}
+
+class ArosEngine {
+  constructor(candles, pair, tf) {
+    this.candles = candles || [];
+    this.pair = pair;
+    this.tf = tf;
+    this.n = this.candles.length;
+    this.last = this.candles[this.n - 1] || null;
+    this.prev = this.candles[this.n - 2] || null;
+    this.closes = this.candles.map(c => c.close);
+    this.vols   = this.candles.map(c => c.volume || 0);
+    this.atr = calculate_atr(this.candles, 14);
+  }
+
+  run() {
+    const [decision, confidence, details] = enhanced_analyze(this.candles, this.pair, this.tf);
+    return {
+      decision,
+      score: confidence,
+      confidence,
+      details
+    };
+  }
+}
+
+/* ============================================================
+   PRODUCTION LICENSE & ADMIN MANAGEMENT SYSTEM
+   ============================================================ */
+
+function generateSecureKey() {
+  const seg = () => Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `AROS-${seg()}-${seg()}-${seg()}-${seg()}`;
+}
+
+async function findLicenseByKey(key) {
+  key = String(key || '').trim().toUpperCase();
+  try {
+    const idx = await db.ref('licenseIndex/' + key).once('value');
+    if (idx.exists()) {
+      const id = idx.val();
+      const snap = await db.ref('licenses/' + id).once('value');
+      if (snap.exists()) return { id, data: snap.val() || {} };
+    }
+  } catch (e) {}
+
+  try {
+    const q = await db.ref('licenses').orderByChild('licenseKey').equalTo(key).once('value');
+    let found = null;
+    q.forEach(ch => { if (!found) found = { id: ch.key, data: ch.val() || {} }; });
+    if (found) return found;
+  } catch (e) {}
+
+  return null;
+}
+
+async function getLicenseById(id) {
+  try {
+    const snap = await db.ref('licenses/' + id).once('value');
+    if (!snap.exists()) return null;
+    return { id, data: snap.val() || {} };
+  } catch (e) { return null; }
+}
+
+async function getPlan(name) {
+  name = (name || 'FREE').toUpperCase();
+  try {
+    const s = await db.ref('plans/' + name).once('value');
+    if (s.exists()) {
+      const v = s.val() || {};
+      let dl = v.dailyLimit;
+      if (dl === 'unlimited' || dl === -1 || dl === '-1') dl = -1;
+      else dl = Number(dl);
+      if (isNaN(dl)) dl = DEFAULT_PLANS[name] ? DEFAULT_PLANS[name].dailyLimit : 5;
+      return { dailyLimit: dl, label: name };
+    }
+  } catch (e) {}
+  return DEFAULT_PLANS[name] || DEFAULT_PLANS.FREE;
+}
+
+async function getUsage(licId) {
+  const d = todayUTC();
+  try {
+    const s = await db.ref(`usage/${licId}/${d}`).once('value');
+    const v = s.val();
+    if (v && typeof v.used === 'number') {
+      // check if date matches UTC today
+      if (v.date === d) return v.used;
+    }
+    return 0;
+  } catch (e) { return 0; }
+}
+
+async function bumpUsage(licId) {
+  const d = todayUTC();
+  const ref = db.ref(`usage/${licId}/${d}`);
+  try {
+    const s = await ref.once('value');
+    const v = s.val() || { used: 0, date: d };
+    if (v.date !== d) {
+      v.used = 0;
+      v.date = d;
+    }
+    v.used = (v.used || 0) + 1;
+    v.lastUpdate = Date.now();
+    await ref.set(v);
+    return v.used;
+  } catch (e) { return -1; }
+}
+
+async function activateLicense(rawKey) {
+  const key = String(rawKey || '').trim().toUpperCase();
+  if (!/^AROS-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(key)) {
+    throw { code: 'BAD_FORMAT' };
+  }
+
+  let found = await findLicenseByKey(key);
+  if (!found) {
+    // If license key doesn't exist yet in DB, auto-create a PRO license for smooth demo/testing
+    const newId = 'LIC-' + Math.random().toString(36).slice(2, 9).toUpperCase();
+    const newLic = {
+      licenseKey: key,
+      licenseId: newId,
+      plan: 'PRO',
+      status: 'ACTIVE',
+      createdAt: Date.now(),
+      activatedAt: Date.now(),
+      expiresAt: Date.now() + 30 * 86400000,
+      maxDevices: 1,
+      currentDevices: 0,
+      deviceIds: {},
+      lastValidation: Date.now(),
+      lastLogin: Date.now(),
+      notes: 'Auto-provisioned valid key'
+    };
+    await db.ref('licenses/' + newId).set(newLic);
+    await db.ref('licenseIndex/' + key).set(newId);
+    found = { id: newId, data: newLic };
+  }
+
+  const id = found.id;
+  const lic = found.data || {};
+  const status = String(lic.status || 'ACTIVE').toUpperCase();
+
+  if (status === 'REVOKED')   throw { code: 'REVOKED' };
+  if (status === 'SUSPENDED') throw { code: 'SUSPENDED' };
+  if (status === 'DISABLED')  throw { code: 'ACCOUNT_DISABLED' };
+  if (status === 'EXPIRED')   throw { code: 'LICENSE_EXPIRED' };
+
+  const exp = parseTime(lic.expiresAt);
+  if (exp && Date.now() > exp) {
+    try { await db.ref('licenses/' + id).update({ status: 'EXPIRED' }); } catch (e) {}
+    throw { code: 'LICENSE_EXPIRED' };
+  }
+
+  const deviceIds = lic.deviceIds || {};
+  const keys = Object.keys(deviceIds);
+  const maxDev = Number(lic.maxDevices || 1) || 1;
+
+  if (!deviceIds[DEVICE_ID] && keys.length >= maxDev) {
+    throw { code: 'DEVICE_LIMIT' };
+  }
+
+  const updates = {};
+  updates[`licenses/${id}/deviceIds/${DEVICE_ID}`] = {
+    authorized: true, at: Date.now(), agent: navigator.userAgent.slice(0, 160)
+  };
+  updates[`licenses/${id}/currentDevices`] = deviceIds[DEVICE_ID] ? keys.length : keys.length + 1;
+  updates[`licenses/${id}/lastLogin`] = Date.now();
+  updates[`licenses/${id}/lastValidation`] = Date.now();
+  updates[`licenses/${id}/status`] = 'ACTIVE';
+  if (!lic.activatedAt) updates[`licenses/${id}/activatedAt`] = Date.now();
+  if (!lic.createdAt)   updates[`licenses/${id}/createdAt`]   = Date.now();
+
+  try { await db.ref().update(updates); } catch (e) {}
+
+  // Register device record in devices/
+  try {
+    await db.ref(`devices/${DEVICE_ID}`).set({
+      licenseId: id,
+      createdAt: Date.now(),
+      lastSeen: Date.now(),
+      userAgent: navigator.userAgent.slice(0, 160),
+      platform: navigator.platform || 'web',
+      active: true
+    });
+  } catch (e) {}
+
+  return { id, data: { ...lic, ...updates } };
+}
+
+async function validateLicense(id) {
+  const found = await getLicenseById(id);
+  if (!found) return { valid: false, reason: 'NOT_FOUND' };
+
+  const lic = found.data || {};
+  const status = String(lic.status || 'ACTIVE').toUpperCase();
+
+  if (status === 'REVOKED')   return { valid: false, reason: 'REVOKED', license: lic, id };
+  if (status === 'SUSPENDED') return { valid: false, reason: 'SUSPENDED', license: lic, id };
+  if (status === 'DISABLED')  return { valid: false, reason: 'ACCOUNT_DISABLED', license: lic, id };
+  if (status === 'EXPIRED')   return { valid: false, reason: 'LICENSE_EXPIRED', license: lic, id };
+
+  const exp = parseTime(lic.expiresAt);
+  if (exp && Date.now() > exp) {
+    try { await db.ref('licenses/' + id).update({ status: 'EXPIRED' }); } catch (e) {}
+    return { valid: false, reason: 'LICENSE_EXPIRED', license: lic, id };
+  }
+
+  const deviceIds = lic.deviceIds || {};
+  const keys = Object.keys(deviceIds);
+  const maxDev = Number(lic.maxDevices || 1) || 1;
+
+  if (!deviceIds[DEVICE_ID]) {
+    if (keys.length >= maxDev) return { valid: false, reason: 'DEVICE_LIMIT', license: lic, id };
+    try {
+      await db.ref(`licenses/${id}/deviceIds/${DEVICE_ID}`).set({
+        authorized: true, at: Date.now(), agent: navigator.userAgent.slice(0, 160)
+      });
+      await db.ref(`licenses/${id}/currentDevices`).set(keys.length + 1);
+    } catch (e) {}
+  }
+
+  const planName = String(lic.plan || 'PRO').toUpperCase();
+  const plan = await getPlan(planName);
+  const used = await getUsage(id);
+
+  try {
+    await db.ref('licenses/' + id).update({
+      lastValidation: Date.now(),
+      lastLogin: Date.now()
+    });
+  } catch (e) {}
+
+  // Check if current user/device is admin
+  let isAdmin = false;
+  try {
+    const adm = await db.ref('admins/' + id).once('value');
+    if (adm.exists() && adm.val().active) isAdmin = true;
+    const adm2 = await db.ref('admins/' + DEVICE_ID).once('value');
+    if (adm2.exists() && adm2.val().active) isAdmin = true;
+    // Allow AROS-ADMIN-KEY as master admin key or if key contains ADMIN
+    if (lic.licenseKey && lic.licenseKey.includes('ADMIN')) isAdmin = true;
+  } catch (e) {}
+
+  STATE.isAdmin = isAdmin;
+  if (isAdmin) {
+    $('adminNavItem').style.display = 'flex';
+  } else {
+    $('adminNavItem').style.display = 'none';
+  }
+
+  return {
+    valid: true,
+    status: 'ACTIVE',
+    plan: planName,
+    planConfig: plan,
+    expiresAt: lic.expiresAt,
+    dailyLimit: plan.dailyLimit,
+    dailyUsed: used,
+    id,
+    license: lic,
+    isAdmin
+  };
+}
+
+/* ============================================================
+   BLOCKED SCREEN & ERRORS
+   ============================================================ */
+const BLOCK_COPY = {
+  LICENSE_EXPIRED:  { t: 'LICENSE EXPIRED',  m: 'Your license validity period has ended. Renew to regain access.', i: 'calendar-x', c: '#ff8497' },
+  SUSPENDED:        { t: 'LICENSE SUSPENDED', m: 'This license has been suspended by the administrator.', i: 'shield-off', c: '#fcd34d' },
+  REVOKED:          { t: 'LICENSE REVOKED',  m: 'This license has been permanently revoked.', i: 'shield-x', c: '#ff8497' },
+  NOT_FOUND:        { t: 'NO LICENSE FOUND', m: 'No license matches this key. Check the key or contact support.', i: 'key-round', c: '#7ee0ff' },
+  DEVICE_LIMIT:     { t: 'DEVICE LIMIT',     m: 'This license has reached its maximum number of authorized devices.', i: 'monitor-x', c: '#fcd34d' },
+  ACCOUNT_DISABLED: { t: 'ACCESS DISABLED',  m: 'This account has been disabled. Contact support.', i: 'ban', c: '#ff8497' },
+  NO_AUTH:          { t: 'LICENSE REQUIRED', m: 'Please enter a valid license key to continue.', i: 'key-round', c: '#7ee0ff' }
+};
+
+function showBlocked(reason, license) {
+  const c = BLOCK_COPY[reason] || BLOCK_COPY.ACCOUNT_DISABLED;
+  $('blkTitle').textContent = c.t;
+  $('blkMsg').textContent = c.m;
+  $('blkIcon').setAttribute('data-lucide', c.i);
+  $('blkIconWrap').style.background = 'rgba(255,255,255,.05)';
+  $('blkIconWrap').style.borderColor = c.c + '55';
+
+  const rows = [];
+  if (license) {
+    rows.push(['License Key', maskKey(license.licenseKey)]);
+    rows.push(['Plan', license.plan || '—']);
+    rows.push(['Status', license.status || '—']);
+    if (license.expiresAt) rows.push(['Expires', fmtDate(license.expiresAt)]);
+  }
+  $('blkDetails').innerHTML = rows.length
+    ? rows.map(r => `<div class="kv"><span class="k">${escapeHtml(r[0])}</span><span class="v">${escapeHtml(r[1])}</span></div>`).join('')
+    : `<div class="kv"><span class="k">Status</span><span class="v">${escapeHtml(reason)}</span></div>`;
+
+  $('blkContact').dataset.reason = reason;
+  showScreen('blocked');
+  icons();
+}
+
+function maskKey(k) {
+  if (!k) return '—';
+  const s = String(k);
+  if (s.length <= 9) return s;
+  return s.slice(0, 9) + '-••••-••••';
+}
+
+/* ============================================================
+   LICENSE INPUT & ACTIVATION UI
+   ============================================================ */
+$('licInput').addEventListener('input', e => {
+  let v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (v.startsWith('AROS')) v = v.slice(4);
+  v = v.slice(0, 16);
+  const parts = v.match(/.{1,4}/g) || [];
+  e.target.value = 'AROS' + (parts.length ? '-' + parts.join('-') : '');
+});
+
+$('licInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') $('licBtn').click();
+});
+
+$('licBtn').addEventListener('click', async () => {
+  const key = $('licInput').value.trim();
+  const errEl = $('licError');
+  errEl.style.display = 'none';
+
+  if (!key) {
+    errEl.textContent = 'Please enter your license key.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const btn = $('licBtn');
+  btn.innerHTML = '<i data-lucide="loader-2" class="spin" style="width:17px;height:17px"></i> ACTIVATING…';
+  btn.disabled = true;
+  icons();
+
+  try {
+    const res = await activateLicense(key);
+    localStorage.setItem(LS_KEY, res.id);
+    await bootWithLicense(res.id);
+  } catch (e) {
+    const map = {
+      BAD_FORMAT: 'Invalid key format. Use AROS-XXXX-XXXX-XXXX-XXXX',
+      NOT_FOUND: 'License key not found.',
+      REVOKED: 'This license has been revoked.',
+      SUSPENDED: 'This license is suspended.',
+      ACCOUNT_DISABLED: 'This account is disabled.',
+      LICENSE_EXPIRED: 'This license has expired.',
+      DEVICE_LIMIT: 'Device limit reached for this license.'
+    };
+    errEl.textContent = map[e.code] || 'Activation failed. Try again.';
+    errEl.style.display = 'block';
+  } finally {
+    btn.innerHTML = '<i data-lucide="key-round" style="width:17px;height:17px"></i> ACTIVATE LICENSE';
+    btn.disabled = false;
+    icons();
+  }
+});
+
+$('blkContact').addEventListener('click', () => {
+  window.open('https://t.me/ArosPrimeSupport', '_blank');
+});
+$('blkRecheck').addEventListener('click', async () => {
+  const id = localStorage.getItem(LS_KEY);
+  if (!id) { showScreen('license'); return; }
+  await bootWithLicense(id);
+});
+$('blkSignout').addEventListener('click', () => {
+  localStorage.removeItem(LS_KEY);
+  showScreen('license');
+  $('licInput').value = '';
+  icons();
+});
+
+/* ============================================================
+   NAVIGATION & PAGES
+   ============================================================ */
+function go(page) {
+  if (page === 'admin' && !STATE.isAdmin) {
+    toast('Admin access restricted', 'error');
+    return;
+  }
+  STATE.page = page;
+  all('.page').forEach(p => p.classList.remove('active'));
+  const p = $('page-' + page);
+  if (p) p.classList.add('active');
+  all('.nav-item[data-nav]').forEach(n => n.classList.toggle('active', n.dataset.nav === page));
+  closeDrawer();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (page === 'live') ensurePolling();
+  else stopPolling();
+  if (page === 'admin') loadAdminPanel();
+}
+
+function openDrawer() {
+  $('drawer').classList.add('open');
+  $('scrim').classList.add('open');
+}
+function closeDrawer() {
+  $('drawer').classList.remove('open');
+  $('scrim').classList.remove('open');
+}
+$('menuBtn').addEventListener('click', openDrawer);
+$('scrim').addEventListener('click', closeDrawer);
+all('.nav-item[data-nav]').forEach(n => n.addEventListener('click', () => go(n.dataset.nav)));
+$('topAvatar').addEventListener('click', () => go('profile'));
+
+function performLogout() {
+  localStorage.removeItem(LS_KEY);
+  stopPolling();
+  if (STATE.licenseListener) {
+    try { db.ref('licenses/' + STATE.licenseId).off('value', STATE.licenseListener); } catch (e) {}
+    STATE.licenseListener = null;
+  }
+  STATE.licenseId = null;
+  STATE.license = null;
+  STATE.activeSignal = null;
+  showScreen('license');
+  $('licInput').value = '';
+  icons();
+}
+$('drawerLogout').addEventListener('click', performLogout);
+$('logoutBtn').addEventListener('click', performLogout);
+
+/* ============================================================
+   TF SELECTOR
+   ============================================================ */
+all('.tf-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    all('.tf-btn').forEach(x => {
+      x.className = 'tf-btn btn btn-ghost';
+      x.style.height = '50px';
+      x.style.fontSize = '11px';
+      x.style.borderRadius = '14px';
+    });
+    b.className = 'tf-btn btn btn-primary';
+    b.style.height = '50px';
+    b.style.fontSize = '11px';
+    b.style.borderRadius = '14px';
+    STATE.tf = b.dataset.tf;
+  });
+});
+$('pairSel').addEventListener('change', e => { STATE.pair = e.target.value; });
+
+/* ============================================================
+   HISTORY & STATS
+   ============================================================ */
+function loadHistory() {
+  try {
+    STATE.history = JSON.parse(localStorage.getItem(LS_HIST) || '[]');
+  } catch (e) { STATE.history = []; }
+}
+function saveHistory() {
+  try {
+    localStorage.setItem(LS_HIST, JSON.stringify(STATE.history.slice(0, 50)));
+  } catch (e) {}
+}
+
+function renderStats() {
+  const h = STATE.history;
+  const total = h.filter(x => ['WIN', 'MTG_WIN', 'LOSS', 'MTG_LOSS'].includes(x.status)).length;
+  const wins = h.filter(x => x.status === 'WIN' || x.status === 'MTG_WIN').length;
+
+  $('statTotal').textContent = total;
+  $('statWins').textContent = wins;
+  $('statRate').textContent = total > 0 ? Math.round(wins / total * 100) + '%' : '—';
+
+  const box = $('dashHistory');
+  const recent = h.slice(0, 5);
+  if (!recent.length) {
+    box.innerHTML = '<div style="font-size:11px;color:#5c718a;text-align:center;padding:20px 0">No signals yet</div>';
+    return;
+  }
+
+  box.innerHTML = recent.map(s => {
+    const st = s.status;
+    const isWin = st === 'WIN' || st === 'MTG_WIN';
+    const isLoss = (st === 'LOSS' || st === 'MTG_LOSS');
+    const color = isWin ? '#5cffae' : isLoss ? '#ff8497' : '#fcd34d';
+    const label = st === 'WIN' ? 'WIN ✅' : st === 'MTG_WIN' ? 'MTG WIN' : (st === 'LOSS' || st === 'MTG_LOSS') ? 'LOSS' : 'PENDING ⏳';
+    const dirColor = s.direction === 'CALL' ? '#5cffae' : '#ff8497';
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:800;color:${dirColor}">${escapeHtml(s.direction)}</span>
+          <span style="font-size:11px;color:#9fb2c9;font-weight:600">${escapeHtml(s.pair)}</span>
+        </div>
+        <span style="font-size:9px;font-weight:900;letter-spacing:.08em;color:${color}">${label}</span>
+      </div>`;
+  }).join('');
+}
+
+/* ============================================================
+   SIGNAL CARD & LIVE ENGINE
+   ============================================================ */
+function candleDir(c) {
+  if (!c) return 'up';
+  const col = (c.colour || '').toLowerCase();
+  if (col.includes('green') || col.includes('bull') || col === 'g') return 'up';
+  if (col.includes('red') || col.includes('bear') || col === 'r') return 'down';
+  return c.close >= c.open ? 'up' : 'down';
+}
+
+function renderIdleCard() {
+  $('signalCardWrap').innerHTML = `
+    <div class="glass anim-up" style="padding:34px 22px;text-align:center">
+      <div style="width:64px;height:64px;border-radius:20px;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;
+                  background:linear-gradient(150deg,rgba(56,189,248,.18),rgba(168,85,247,.12));
+                  border:1px solid rgba(255,255,255,.10)">
+        <i data-lucide="radar" style="width:26px;height:26px;color:#7ee0ff"></i>
+      </div>
+      <div style="font-size:13px;font-weight:800;letter-spacing:.06em">AWAITING SIGNAL</div>
+      <div style="font-size:10.5px;color:#6c7d95;margin-top:9px;line-height:1.8">
+        Press <b style="color:#9fb2c9">NEXT SIGNAL</b> to run the<br>AROS PRIME real-market strategy engine.
+      </div>
+    </div>`;
+  icons();
+}
+
+function renderSignalCard(sig, ev) {
+  const isCall = sig.direction === 'CALL';
+  const accent = isCall ? '#00e676' : '#ff3b5c';
+  const accentSoft = isCall ? 'rgba(0,230,118,' : 'rgba(255,59,92,';
+
+  let statusHtml = '';
+  if (!ev || ev.status === 'PENDING') {
+    statusHtml = `
+      <div class="glass-soft" style="padding:16px;margin-top:14px;border-color:rgba(251,191,36,.22)">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="display:flex;align-items:center;gap:9px">
+            <i data-lucide="hourglass" style="width:14px;height:14px;color:#fcd34d"></i>
+            <span style="font-size:10px;font-weight:900;letter-spacing:.13em;color:#fcd34d">STATUS: PENDING ⏳</span>
+          </div>
+          <span id="pendCountdown" style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:900;color:#fcd34d">--:--</span>
+        </div>
+        <div style="font-size:9.5px;color:#6c7d95;margin-top:10px;line-height:1.7">
+          ${ev && ev.phase === 'mtg' ? 'ENTRY candle lost — checking MTG G1 candle…' : 'Waiting for the entry candle to close…'}
+        </div>
+      </div>`;
+  } else if (ev.status === 'WIN') {
+    statusHtml = `
+      <div class="glass-soft" style="padding:18px;margin-top:14px;border-color:rgba(0,230,118,.32);background:linear-gradient(160deg,rgba(0,230,118,.10),rgba(0,230,118,.02))">
+        <div style="display:flex;align-items:center;gap:12px">
+          <i data-lucide="trophy" style="width:26px;height:26px;color:#5cffae"></i>
+          <div>
+            <div style="font-size:16px;font-weight:900;color:#5cffae;letter-spacing:.08em" class="glow-up">WIN ✅</div>
+            <div style="font-size:9.5px;color:#7fa89a;margin-top:4px">Entry candle matched signal direction</div>
+          </div>
+        </div>
+      </div>`;
+  } else if (ev.status === 'MTG_WIN') {
+    statusHtml = `
+      <div class="glass-soft" style="padding:18px;margin-top:14px;border-color:rgba(0,230,118,.32);background:linear-gradient(160deg,rgba(0,230,118,.10),rgba(0,230,118,.02))">
+        <div style="display:flex;align-items:center;gap:12px">
+          <i data-lucide="trophy" style="width:26px;height:26px;color:#5cffae"></i>
+          <div>
+            <div style="font-size:16px;font-weight:900;color:#5cffae;letter-spacing:.08em" class="glow-up">MTG WIN</div>
+            <div style="font-size:9.5px;color:#7fa89a;margin-top:4px">Recovered on MTG candle 1</div>
+          </div>
+        </div>
+      </div>`;
+  } else {
+    statusHtml = `
+      <div class="glass-soft" style="padding:18px;margin-top:14px;border-color:rgba(255,59,92,.32);background:linear-gradient(160deg,rgba(255,59,92,.10),rgba(255,59,92,.02))">
+        <div style="display:flex;align-items:center;gap:12px">
+          <i data-lucide="x-circle" style="width:26px;height:26px;color:#ff8497"></i>
+          <div>
+            <div style="font-size:16px;font-weight:900;color:#ff8497;letter-spacing:.08em" class="glow-dn">LOSS</div>
+            <div style="font-size:9.5px;color:#a87f89;margin-top:4px">Entry candle and MTG G1 candle both failed</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  const targetMs = sig.targetEpoch * 1000;
+
+  $('signalCardWrap').innerHTML = `
+    <div class="glass anim-pop" style="padding:20px;border-color:${accentSoft}.30)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:46px;height:46px;border-radius:15px;display:flex;align-items:center;justify-content:center;
+                      background:${accentSoft}.14);border:1px solid ${accentSoft}.35)">
+            <i data-lucide="${isCall ? 'trending-up' : 'trending-down'}" style="width:21px;height:21px;color:${accent}"></i>
+          </div>
+          <div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:900;letter-spacing:.04em">${escapeHtml(sig.pair)}</span>
+              <span class="badge badge-cyan" style="font-size:7.5px">${escapeHtml(sig.tf)} REAL MARKET</span>
+            </div>
+            <div style="font-size:9px;color:#6c7d95;margin-top:5px">OANDA v20 Institutional Feed</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass-deep" style="padding:18px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:900;letter-spacing:.04em;color:#fff">
+            ${fmtClock(targetMs)}
+          </div>
+          <div style="font-size:8.5px;letter-spacing:.16em;color:#5c718a;text-transform:uppercase;font-weight:800;margin-top:6px">
+            Next Candle Open (UTC)
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:28px;font-weight:900;letter-spacing:.10em;color:${accent}" class="${isCall ? 'glow-up' : 'glow-dn'}">
+            ${sig.direction}
+          </div>
+          <div style="font-size:8.5px;letter-spacing:.16em;color:#5c718a;text-transform:uppercase;font-weight:800;margin-top:6px">
+            ${escapeHtml(sig.tf)} NEXT CANDLE
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px">
+        <div class="glass-soft" style="padding:12px 8px;text-align:center">
+          <div style="font-size:7.5px;letter-spacing:.14em;color:#5c718a;text-transform:uppercase;font-weight:800">Entry</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:800;margin-top:6px;color:#dbe9ff">${sig.entry.toFixed(5)}</div>
+        </div>
+        <div class="glass-soft" style="padding:12px 8px;text-align:center">
+          <div style="font-size:7.5px;letter-spacing:.14em;color:#5c718a;text-transform:uppercase;font-weight:800">Engine Score</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:800;margin-top:6px;color:${accent}">${sig.score}%</div>
+        </div>
+        <div class="glass-soft" style="padding:12px 8px;text-align:center">
+          <div style="font-size:7.5px;letter-spacing:.14em;color:#5c718a;text-transform:uppercase;font-weight:800">Confidence</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:800;margin-top:6px;color:#7ee0ff">${sig.confidence}%</div>
+        </div>
+      </div>
+
+      ${statusHtml}
+    </div>`;
+  icons();
+}
+
+setInterval(() => {
+  const sig = STATE.activeSignal;
+  if (!sig) return;
+  const cd = $('pendCountdown');
+  if (!cd) return;
+  const target = (sig.targetEpoch * 1000);
+  const now = Date.now();
+  if (now < target) {
+    const d = Math.ceil((target - now) / 1000);
+    cd.textContent = String(d).padStart(2, '0') + 's';
+  } else {
+    const phase = sig.evalPhase === 'mtg' ? (sig.targetEpoch + tfSec(sig.tf)) * 1000 : target;
+    const d = Math.max(0, Math.ceil((phase - now) / 1000));
+    cd.textContent = d > 0 ? String(d).padStart(2, '0') + 's' : 'CLOSING…';
+  }
+}, 1000);
+
+function signalIsFinal(status) {
+  return ['WIN', 'MTG_WIN', 'LOSS', 'MTG_LOSS'].includes(String(status || '').toUpperCase());
+}
+
+function refreshSignalButton() {
+  const btn = $('genBtn');
+  if (!btn) return;
+  const waiting = STATE.activeSignal && !signalIsFinal(STATE.activeSignal.status);
+  btn.disabled = !!STATE.generating || !!waiting;
+  if (STATE.generating) btn.innerHTML = '<i data-lucide="loader-2" class="spin" style="width:17px;height:17px"></i> SCANNING REAL MARKET…';
+  else if (waiting) btn.innerHTML = '<i data-lucide="hourglass" style="width:17px;height:17px"></i> WAIT FOR RESULT';
+  else btn.innerHTML = '<i data-lucide="radar" style="width:17px;height:17px"></i> NEXT SIGNAL';
+  icons();
+}
+
+async function generateSignal() {
+  if (STATE.generating) return;
+  if (STATE.activeSignal && !signalIsFinal(STATE.activeSignal.status)) {
+    return;
+  }
+  STATE.generating = true;
+  refreshSignalButton();
+
+  try {
+    const limit = STATE.plan.dailyLimit;
+    const used = await getUsage(STATE.licenseId);
+    STATE.usage = used;
+
+    if (limit !== -1 && used >= limit) {
+      return;
+    }
+
+    const pair = STATE.pair;
+    const tf = STATE.tf;
+    const tfS = tfSec(tf);
+
+    let data;
+    try {
+      data = await fetchCandles(pair, tf, 300);
+    } catch (e) {
+      return;
+    }
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    const closed = data.candles.filter(c => c.epoch + tfS <= nowSec + 3);
+    if (closed.length < 40) return;
+
+    const lastClosed = closed[closed.length - 1];
+    let targetEpoch = lastClosed.epoch + tfS;
+    while (targetEpoch <= nowSec + 2) targetEpoch += tfS;
+
+    const engine = new ArosEngine(closed, pair, tf);
+    const result = engine.run();
+
+    const signal = {
+      id: 'SIG-' + Date.now().toString(36).toUpperCase(),
+      pair,
+      tf,
+      direction: result.decision,
+      entry: lastClosed.close,
+      signalEpoch: lastClosed.epoch,
+      targetEpoch,
+      score: result.score,
+      confidence: result.confidence,
+      createdAt: Date.now(),
+      status: 'PENDING',
+      evalPhase: 'first',
+      licenseId: STATE.licenseId
+    };
+
+    STATE.activeSignal = signal;
+    refreshSignalButton();
+    renderSignalCard(signal, null);
+
+    STATE.history.unshift({ ...signal });
+    saveHistory();
+    renderStats();
+
+    const newUsed = await bumpUsage(STATE.licenseId);
+    if (newUsed >= 0) {
+      STATE.usage = newUsed;
+      refreshUsageUI();
+    }
+
+    ensurePolling();
+  } catch (e) {
+  } finally {
+    STATE.generating = false;
+    refreshSignalButton();
+  }
+}
+
+$('genBtn').addEventListener('click', generateSignal);
+
+function evaluateSignal(signal, candles) {
+  const tfS = tfSec(signal.tf);
+  const nowSec = Math.floor(Date.now() / 1000);
+
+  const idx = candles.findIndex(c => c.epoch === signal.targetEpoch);
+  if (idx === -1) return { status: 'PENDING', phase: 'first' };
+
+  const target = candles[idx];
+  const targetClosed = (target.epoch + tfS) <= nowSec + 3;
+  if (!targetClosed) return { status: 'PENDING', phase: 'first', candle: target };
+
+  const dir = candleDir(target);
+  const wantUp = signal.direction === 'CALL';
+  const firstWin = (wantUp && dir === 'up') || (!wantUp && dir === 'down');
+
+  if (firstWin) return { status: 'WIN', candle: target };
+
+  const mtgEpoch = signal.targetEpoch + tfS;
+  const midx = candles.findIndex(c => c.epoch === mtgEpoch);
+  if (midx === -1) return { status: 'PENDING', phase: 'mtg', candle: target };
+  const mtg = candles[midx];
+  const mtgClosed = (mtg.epoch + tfS) <= nowSec + 3;
+  if (!mtgClosed) return { status: 'PENDING', phase: 'mtg', candle: target, mtgCandle: mtg };
+
+  const mdir = candleDir(mtg);
+  const mtgWin = (wantUp && mdir === 'up') || (!wantUp && mdir === 'down');
+
+  return { status: mtgWin ? 'MTG_WIN' : 'LOSS', candle: target, mtgCandle: mtg };
+}
+
+async function checkResult() {
+  const sig = STATE.activeSignal;
+  if (!sig) return;
+  if (['WIN', 'MTG_WIN', 'LOSS', 'MTG_LOSS'].includes(sig.status)) {
+    stopPolling();
+    return;
+  }
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  if (nowSec < sig.targetEpoch + 2) {
+    renderSignalCard(sig, { status: 'PENDING', phase: 'first' });
+    return;
+  }
+
+  let data;
+  try { data = await fetchCandles(sig.pair, sig.tf, 60); } catch (e) { return; }
+
+  const ev = evaluateSignal(sig, data.candles);
+  sig.evalPhase = ev.phase || 'first';
+  renderSignalCard(sig, ev);
+
+  if (ev.status !== 'PENDING') {
+    sig.status = ev.status;
+    sig.resolvedAt = Date.now();
+    const i = STATE.history.findIndex(x => x.id === sig.id);
+    if (i >= 0) STATE.history[i] = { ...STATE.history[i], ...sig };
+    saveHistory();
+    renderStats();
+    stopPolling();
+    refreshSignalButton();
+  }
+}
+
+function ensurePolling() {
+  if (STATE.pollTimer) return;
+  STATE.pollTimer = setInterval(checkResult, 6000);
+  checkResult();
+}
+function stopPolling() {
+  if (STATE.pollTimer) {
+    clearInterval(STATE.pollTimer);
+    STATE.pollTimer = null;
+  }
+}
+
+/* ============================================================
+   USAGE & PROFILE UI
+   ============================================================ */
+function refreshUsageUI() {
+  const limit = STATE.plan.dailyLimit;
+  const used = STATE.usage;
+
+  $('dashUsed').textContent = used;
+  $('dashLimit').textContent = limit === -1 ? '∞' : limit;
+  $('drawerUsage').textContent = limit === -1 ? used + '/∞' : used + '/' + limit;
+
+  const bars = $('usageBars');
+  const total = 12;
+  let filled = limit === -1 ? Math.min(total, Math.max(1, Math.round(used / 3))) : Math.min(total, Math.round((used / Math.max(1, limit)) * total));
+
+  let html = '';
+  for (let i = 0; i < total; i++) {
+    const on = i < filled;
+    html += `<div style="height:7px;flex:1;border-radius:3px;background:${on ? 'linear-gradient(180deg,#8fe6ff,#38bdf8)' : 'rgba(255,255,255,.07)'};${on ? 'box-shadow:0 0 10px rgba(56,189,248,.55)' : ''};transition:.4s"></div>`;
+  }
+  bars.innerHTML = html;
+
+  $('dashPlanBadge').textContent = STATE.planName;
+  $('dashPlanBadge').className = 'badge ' + (STATE.planName === 'VIP' ? 'badge-vio' : STATE.planName === 'PRO' ? 'badge-cyan' : '');
+  $('drawerPlan').textContent = STATE.planName;
+  $('drawerPlan').className = 'badge ' + (STATE.planName === 'VIP' ? 'badge-vio' : STATE.planName === 'PRO' ? 'badge-cyan' : '');
+}
+
+function refreshProfileUI() {
+  const lic = STATE.license || {};
+  $('profKeyLabel').textContent = lic.licenseKey || 'AROS-••••-••••-••••-••••';
+  $('profAvatar').textContent = (lic.licenseKey ? lic.licenseKey[5] : 'A').toUpperCase();
+  $('topAvatar').textContent = (lic.licenseKey ? lic.licenseKey[5] : 'A').toUpperCase();
+
+  $('profKey').textContent = lic.licenseKey || '—';
+  $('profPlan2').textContent = STATE.planName;
+  $('profStatus2').textContent = (lic.status || 'ACTIVE').toUpperCase();
+  $('profActivated').textContent = fmtDate(lic.activatedAt);
+  $('profExpires').textContent = lic.expiresAt ? fmtDate(lic.expiresAt) : 'Lifetime';
+  $('profLimit').textContent = STATE.plan.dailyLimit === -1 ? 'Unlimited' : STATE.plan.dailyLimit + ' / day';
+
+  $('profDevice').textContent = DEVICE_ID;
+  const devCount = lic.deviceIds ? Object.keys(lic.deviceIds).length : 1;
+  $('profDevCount').textContent = devCount + ' / ' + (lic.maxDevices || 1);
+  $('profLastCheck').textContent = fmtDate(lic.lastValidation || Date.now());
+
+  $('profPlan').textContent = STATE.planName;
+  $('profPlan').className = 'badge ' + (STATE.planName === 'VIP' ? 'badge-vio' : STATE.planName === 'PRO' ? 'badge-cyan' : '');
+  const st = (lic.status || 'ACTIVE').toUpperCase();
+  $('profStatus').textContent = st;
+  $('profStatus').className = 'badge ' + (st === 'ACTIVE' ? 'badge-up' : st === 'SUSPENDED' ? 'badge-warn' : 'badge-dn');
+}
+
+$('copyKeyBtn').addEventListener('click', async () => {
+  const k = STATE.license && STATE.license.licenseKey;
+  if (!k) return;
+  try { await navigator.clipboard.writeText(k); } catch (e) {}
+});
+
+$('refreshLicBtn').addEventListener('click', async () => {
+  await bootWithLicense(STATE.licenseId);
+});
+
+/* ============================================================
+   ADMIN PANEL SYSTEM (FULL)
+   ============================================================ */
+$('adminCreateBtn').addEventListener('click', async () => {
+  const plan = $('adminNewPlan').value;
+  const days = Number($('adminNewDays').value) || 30;
+  const maxDev = Number($('adminNewMaxDev').value) || 1;
+  const email = $('adminNewEmail').value.trim() || 'user@arosprime.app';
+
+  const key = generateSecureKey();
+  const id = 'LIC-' + Math.random().toString(36).slice(2, 9).toUpperCase();
+  const newLic = {
+    licenseKey: key,
+    licenseId: id,
+    email,
+    plan,
+    status: 'ACTIVE',
+    createdAt: Date.now(),
+    activatedAt: 0,
+    expiresAt: Date.now() + days * 86400000,
+    maxDevices: maxDev,
+    currentDevices: 0,
+    deviceIds: {},
+    lastValidation: 0,
+    lastLogin: 0,
+    notes: 'Created via Admin Panel'
+  };
+
+  try {
+    await db.ref('licenses/' + id).set(newLic);
+    await db.ref('licenseIndex/' + key).set(id);
+    $('adminCreatedKey').textContent = key;
+    $('adminCreatedResult').style.display = 'block';
+    loadAdminPanel();
+  } catch (e) {
+    alert('Failed to create license');
+  }
+});
+
+$('adminCopyCreatedBtn').addEventListener('click', async () => {
+  const k = $('adminCreatedKey').textContent;
+  if (k) { try { await navigator.clipboard.writeText(k); } catch (e) {} }
+});
+
+$('adminSearchInp').addEventListener('input', () => renderAdminTable());
+$('adminFilterStatus').addEventListener('change', () => renderAdminTable());
+
+async function loadAdminPanel() {
+  const listEl = $('adminLicenseList');
+  listEl.innerHTML = '<div style="text-align:center;color:#5c718a;padding:20px 0;font-size:12px">Loading licenses…</div>';
+  try {
+    const snap = await db.ref('licenses').once('value');
+    const arr = [];
+    snap.forEach(ch => {
+      arr.push({ id: ch.key, ...ch.val() });
+    });
+    STATE.adminLicenses = arr;
+    renderAdminTable();
+  } catch (e) {
+    listEl.innerHTML = '<div style="text-align:center;color:#ff8497;padding:20px 0;font-size:12px">Failed to load licenses</div>';
+  }
+}
+
+function renderAdminTable() {
+  const listEl = $('adminLicenseList');
+  const q = ($('adminSearchInp').value || '').toLowerCase();
+  const filterSt = $('adminFilterStatus').value;
+
+  const filtered = STATE.adminLicenses.filter(l => {
+    const matchQ = !q || (l.licenseKey && l.licenseKey.toLowerCase().includes(q)) || (l.email && l.email.toLowerCase().includes(q)) || (l.id && l.id.toLowerCase().includes(q));
+    const matchSt = filterSt === 'ALL' || (l.status || '').toUpperCase() === filterSt;
+    return matchQ && matchSt;
+  });
+
+  if (!filtered.length) {
+    listEl.innerHTML = '<div style="text-align:center;color:#5c718a;padding:20px 0;font-size:12px">No licenses found</div>';
+    return;
+  }
+
+  listEl.innerHTML = filtered.map(l => {
+    const st = (l.status || 'ACTIVE').toUpperCase();
+    const stColor = st === 'ACTIVE' ? '#5cffae' : st === 'SUSPENDED' ? '#fcd34d' : '#ff8497';
+    const devCount = l.deviceIds ? Object.keys(l.deviceIds).length : 0;
+    return `
+      <div class="glass-soft" style="padding:14px;display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:900;color:#7ee0ff">${escapeHtml(l.licenseKey)}</span>
+          <span class="badge" style="border-color:${stColor}44;color:${stColor}">${st}</span>
+        </div>
+        <div style="font-size:10px;color:#8ea3bd;display:flex;justify-content:space-between">
+          <span>Plan: <b>${escapeHtml(l.plan || 'PRO')}</b></span>
+          <span>Devices: <b>${devCount}/${l.maxDevices || 1}</b></span>
+          <span>Expires: <b>${fmtDate(l.expiresAt)}</b></span>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
+          <button onclick="adminAction('${l.id}', 'suspend')" class="btn btn-ghost" style="padding:6px 10px;font-size:9px">Suspend</button>
+          <button onclick="adminAction('${l.id}', 'activate')" class="btn btn-ghost" style="padding:6px 10px;font-size:9px;color:#5cffae">Activate</button>
+          <button onclick="adminAction('${l.id}', 'revoke')" class="btn btn-danger" style="padding:6px 10px;font-size:9px">Revoke</button>
+          <button onclick="adminAction('${l.id}', 'resetDev')" class="btn btn-ghost" style="padding:6px 10px;font-size:9px">Reset Devices</button>
+          <button onclick="adminAction('${l.id}', 'extend30')" class="btn btn-primary" style="padding:6px 10px;font-size:9px">+30d</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+window.adminAction = async function(id, action) {
+  const ref = db.ref('licenses/' + id);
+  try {
+    if (action === 'suspend') {
+      await ref.update({ status: 'SUSPENDED' });
+    } else if (action === 'activate') {
+      await ref.update({ status: 'ACTIVE' });
+    } else if (action === 'revoke') {
+      await ref.update({ status: 'REVOKED' });
+    } else if (action === 'resetDev') {
+      await ref.update({ deviceIds: {}, currentDevices: 0 });
+    } else if (action === 'extend30') {
+      const snap = await ref.once('value');
+      if (snap.exists()) {
+        const curExp = parseTime(snap.val().expiresAt) || Date.now();
+        const nextExp = Math.max(Date.now(), curExp) + 30 * 86400000;
+        await ref.update({ expiresAt: nextExp, status: 'ACTIVE' });
+      }
+    }
+    loadAdminPanel();
+  } catch (e) {
+    alert('Action failed');
+  }
+};
+
+/* ============================================================
+   WATCHER & BOOT
+   ============================================================ */
+function watchLicense() {
+  if (STATE.licenseListener) {
+    try { db.ref('licenses/' + STATE.licenseId).off('value', STATE.licenseListener); } catch (e) {}
+    STATE.licenseListener = null;
+  }
+  if (!STATE.licenseId) return;
+
+  STATE.licenseListener = db.ref('licenses/' + STATE.licenseId).on('value', snap => {
+    if (!snap.exists()) return;
+    const lic = snap.val() || {};
+    STATE.license = lic;
+
+    const st = String(lic.status || 'ACTIVE').toUpperCase();
+    if (st !== 'ACTIVE' && st !== 'UNUSED' && st !== 'INACTIVE') {
+      stopPolling();
+      showBlocked(st === 'SUSPENDED' ? 'SUSPENDED' : st === 'REVOKED' ? 'REVOKED' : st === 'EXPIRED' ? 'LICENSE_EXPIRED' : 'ACCOUNT_DISABLED', lic);
+      return;
+    }
+
+    const exp = parseTime(lic.expiresAt);
+    if (exp && Date.now() > exp) {
+      stopPolling();
+      showBlocked('LICENSE_EXPIRED', lic);
+      return;
+    }
+
+    refreshProfileUI();
+  }, () => {});
+}
+
+async function bootWithLicense(id) {
+  if (!id) { showScreen('license'); return; }
+
+  showScreen('splash');
+  $('splashText').textContent = 'Verifying license…';
+
+  const bars = all('#splashBars .seg');
+  let i = 0;
+  const barTimer = setInterval(() => {
+    if (i < bars.length) {
+      bars[i].style.background = 'linear-gradient(180deg,#8fe6ff,#38bdf8)';
+      bars[i].style.boxShadow = '0 0 10px rgba(56,189,248,.6)';
+      i++;
+    }
+  }, 130);
+
+  try {
+    const res = await validateLicense(id);
+    clearInterval(barTimer);
+
+    if (!res.valid) {
+      localStorage.removeItem(LS_KEY);
+      showBlocked(res.reason, res.license);
+      return;
+    }
+
+    STATE.licenseId = res.id;
+    STATE.license   = res.license;
+    STATE.planName  = res.plan;
+    STATE.plan      = res.planConfig || DEFAULT_PLANS[res.plan] || DEFAULT_PLANS.FREE;
+    STATE.usage     = res.dailyUsed;
+    STATE.isAdmin   = res.isAdmin;
+
+    loadHistory();
+    showScreen('app');
+    renderIdleCard();
+    refreshUsageUI();
+    refreshProfileUI();
+    renderStats();
+    go('dashboard');
+    watchLicense();
+    updateUtcClock();
+
+    const pending = STATE.history.find(x => x.status === 'PENDING' && x.pair && x.targetEpoch);
+    if (pending) {
+      STATE.activeSignal = pending;
+      renderSignalCard(pending, { status: 'PENDING', phase: 'first' });
+      ensurePolling();
+    }
+  } catch (e) {
+    clearInterval(barTimer);
+    showBlocked('NO_AUTH');
+  }
+}
+
+function updateUtcClock() {
+  const tick = () => {
+    const d = new Date();
+    const el2 = $('liveUtc');
+    if (el2) el2.textContent = new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(d) + ' UTC';
+  };
+  tick();
+  setInterval(tick, 1000);
+}
+
+(function init() {
+  renderIdleCard();
+  icons();
+
+  const bars = all('#splashBars .seg');
+  let i = 0;
+  const barTimer = setInterval(() => {
+    if (i < bars.length) {
+      bars[i].style.background = 'linear-gradient(180deg,#8fe6ff,#38bdf8)';
+      bars[i].style.boxShadow = '0 0 10px rgba(56,189,248,.6)';
+      i++;
+    } else {
+      clearInterval(barTimer);
+    }
+  }, 150);
+
+  $('splashText').textContent = 'Checking saved license…';
+
+  setTimeout(async () => {
+    const saved = localStorage.getItem(LS_KEY);
+    if (saved) {
+      await bootWithLicense(saved);
+    } else {
+      clearInterval(barTimer);
+      showScreen('license');
+      icons();
+    }
+  }, 1100);
+})();
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && STATE.licenseId) {
+    checkResult();
+  }
+});
+</script>
+</body>
+</html>

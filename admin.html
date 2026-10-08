@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AROS PRIME — Enterprise Admin Console</title>
+<meta name="description" content="Master Enterprise License & System Management Console" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Plus Jakarta Sans', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace']
+      },
+      colors: {
+        zinc: { 955: '#09090b' }
+      }
+    }
+  }
+}
+</script>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{font-family:'Plus Jakarta Sans',sans-serif;background:#09090b;color:#f4f4f5}
+  ::-webkit-scrollbar{width:6px;height:6px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:10px}
+  .glass{
+    background:linear-gradient(145deg,rgba(255,255,255,.05),rgba(255,255,255,.01));
+    border:1px solid rgba(255,255,255,.08);
+    backdrop-filter:blur(20px);
+  }
+  .inp{
+    width:100%;
+    background:rgba(0,0,0,.4);
+    border:1px solid rgba(255,255,255,.12);
+    border-radius:14px;
+    padding:14px 16px;
+    color:#fff;
+    font-size:14px;
+    outline:none;
+    transition:all .2s;
+  }
+  .inp:focus{
+    border-color:rgba(56,189,248,.6);
+    box-shadow:0 0 0 3px rgba(56,189,248,.15);
+  }
+  select.inp{appearance:none;cursor:pointer}
+  select.inp option{background:#09090b;color:#fff}
+  .btn{
+    border-radius:14px;font-weight:700;letter-spacing:.05em;
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    cursor:pointer;transition:all .2s;border:none;padding:14px 20px;font-size:13px;
+  }
+  .btn-primary{
+    background:linear-gradient(135deg,#38bdf8,#0284c7);
+    color:#09090b;
+    box-shadow:0 8px 25px rgba(56,189,248,.25);
+  }
+  .btn-primary:hover{filter:brightness(1.1)}
+  .btn-ghost{
+    background:rgba(255,255,255,.04);
+    border:1px solid rgba(255,255,255,.09);
+    color:#e4e4e7;
+  }
+  .btn-ghost:hover{background:rgba(255,255,255,.08)}
+  .btn-danger{
+    background:rgba(239,68,68,.15);
+    border:1px solid rgba(239,68,68,.3);
+    color:#fca5a5;
+  }
+  .admin-page{display:none}
+  .admin-page.active{display:block;animation:fadeIn .4s ease both}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  table{width:100%;border-collapse:collapse;text-align:left;font-size:13px}
+  th{padding:12px 16px;font-size:10px;font-weight:800;letter-spacing:.16em;color:#71717a;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,.08)}
+  td{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.04);color:#f4f4f5;vertical-align:middle}
+  tr:hover td{background:rgba(255,255,255,.02)}
+  .modal-backdrop{
+    position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);
+    z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;
+    opacity:0;pointer-events:none;transition:opacity .2s;
+  }
+  .modal-backdrop.open{opacity:1;pointer-events:auto}
+  .modal-box{
+    width:100%;max-width:540px;background:#18181b;border:1px solid rgba(255,255,255,.12);
+    border-radius:24px;padding:28px;box-shadow:0 25px 50px rgba(0,0,0,.8);
+  }
+</style>
+</head>
+<body class="min-h-screen bg-zinc-955 text-zinc-100 flex flex-col selection:bg-sky-500/30 selection:text-sky-200">
+
+<!-- ADMIN LOGIN GATE -->
+<div id="screen-login" class="fixed inset-0 z-50 bg-zinc-955 flex items-center justify-center p-4">
+  <div class="glass max-w-md w-full p-8 rounded-3xl shadow-2xl">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-400 to-indigo-600 flex items-center justify-center font-black text-zinc-950 text-xl shadow-lg shadow-sky-500/20">
+        A
+      </div>
+      <div>
+        <h1 class="font-black text-lg uppercase tracking-wider text-zinc-100">AROS PRIME</h1>
+        <p class="text-[10px] font-mono text-rose-400 uppercase tracking-widest">Enterprise Admin Console</p>
+      </div>
+    </div>
+
+    <h2 class="text-2xl font-black text-zinc-100 mb-2">Master Authentication</h2>
+    <p class="text-xs text-zinc-400 mb-6">Enter master admin key (<code class="text-sky-400">MEHEDI009</code>) to access enterprise control.</p>
+
+    <form id="loginForm" class="space-y-4">
+      <div>
+        <label class="block text-[10px] font-mono uppercase tracking-widest text-zinc-400 mb-2">Master Key</label>
+        <input id="loginKeyInp" type="password" class="inp uppercase font-mono text-center tracking-wider text-sm" placeholder="MEHEDI009" required />
+      </div>
+
+      <div id="loginError" class="hidden p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 font-medium"></div>
+
+      <button type="submit" class="btn btn-primary w-full py-4 text-xs uppercase tracking-widest font-black">
+        UNLOCK ADMIN PANEL
+      </button>
+    </form>
+
+    <div class="mt-6 pt-6 border-t border-zinc-800/80 flex items-center justify-between text-[11px] text-zinc-500">
+      <span>Client App:</span>
+      <a href="index.html" class="text-sky-400 hover:underline font-mono">index.html →</a>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN DASHBOARD APP -->
+<div id="screen-app" class="min-h-screen flex flex-col hidden">
+  <div class="flex min-h-screen">
+    
+    <!-- SIDEBAR -->
+    <aside class="hidden lg:flex flex-col w-64 bg-zinc-950/90 border-r border-zinc-800/80 backdrop-blur-xl fixed inset-y-0 z-40">
+      <div class="p-6 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-indigo-600 flex items-center justify-center font-black text-zinc-950 text-lg shadow-lg">
+          A
+        </div>
+        <div>
+          <h2 class="font-black text-xs uppercase tracking-wider text-zinc-100">AROS PRIME</h2>
+          <p class="text-[9px] font-mono text-rose-400 uppercase tracking-widest">Enterprise Admin</p>
+        </div>
+      </div>
+
+      <div class="h-px bg-zinc-800/80 mx-6"></div>
+
+      <nav class="p-4 flex-1 space-y-1">
+        <button onclick="switchAdminTab('dashboard')" class="admin-nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold text-sky-400 bg-sky-500/10 border border-sky-500/20" data-target="dashboard">
+          <i data-lucide="layout-grid" class="w-4 h-4"></i> Dashboard
+        </button>
+        <button onclick="switchAdminTab('licenses')" class="admin-nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold text-zinc-400 hover:text-zinc-200" data-target="licenses">
+          <i data-lucide="key-round" class="w-4 h-4"></i> Licenses Hub
+        </button>
+        <button onclick="switchAdminTab('users')" class="admin-nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold text-zinc-400 hover:text-zinc-200" data-target="users">
+          <i data-lucide="users" class="w-4 h-4"></i> Users Database
+        </button>
+        <button onclick="switchAdminTab('devices')" class="admin-nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold text-zinc-400 hover:text-zinc-200" data-target="devices">
+          <i data-lucide="monitor" class="w-4 h-4"></i> Hardware Devices
+        </button>
+        <button onclick="switchAdminTab('usage')" class="admin-nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold text-zinc-400 hover:text-zinc-200" data-target="usage">
+          <i data-lucide="activity" class="w-4 h-4"></i> Usage Telemetry
+        </button>
+      </nav>
+
+      <div class="p-4 border-t border-zinc-800 bg-zinc-900/50 flex items-center justify-between">
+        <div>
+          <div class="font-mono text-xs font-bold text-sky-400">MEHEDI009</div>
+          <div class="text-[9px] text-zinc-500">Master Administrator</div>
+        </div>
+        <button onclick="lockAdmin()" class="btn btn-ghost p-2" title="Lock Admin">
+          <i data-lucide="lock" class="w-4 h-4 text-rose-400"></i>
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN AREA -->
+    <main class="flex-1 lg:pl-64 min-h-screen p-6 sm:p-10">
+      <div class="max-w-7xl mx-auto space-y-8">
+        
+        {/* PAGE 1: DASHBOARD */}
+        <div id="page-dashboard" class="admin-page active space-y-8">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 class="text-2xl sm:text-3xl font-black text-zinc-100">Enterprise Control Center</h1>
+              <p class="text-xs text-zinc-400 mt-1">Real-time system telemetry and license metrics</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <button onclick="fastCreateLicense()" class="btn btn-primary bg-gradient-to-r from-emerald-500 to-emerald-700 text-zinc-950 font-black">
+                <i data-lucide="zap" class="w-4 h-4"></i> ⚡ Fast Create & Copy
+              </button>
+              <button onclick="openModal('modalCreate')" class="btn btn-primary">
+                <i data-lucide="plus" class="w-4 h-4"></i> Create License
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="glass rounded-2xl p-6">
+              <div class="text-[10px] font-mono uppercase tracking-widest text-zinc-400 mb-2">Total Licenses</div>
+              <div id="statTotalLic" class="text-3xl font-mono font-black text-zinc-100">0</div>
+            </div>
+            <div class="glass rounded-2xl p-6">
+              <div class="text-[10px] font-mono uppercase tracking-widest text-zinc-400 mb-2">Active Licenses</div>
+              <div id="statActiveLic" class="text-3xl font-mono font-black text-emerald-400">0</div>
+            </div>
+            <div class="glass rounded-2xl p-6">
+              <div class="text-[10px] font-mono uppercase tracking-widest text-zinc-400 mb-2">Expired / Suspended</div>
+              <div id="statExpiredLic" class="text-3xl font-mono font-black text-rose-400">0</div>
+            </div>
+            <div class="glass rounded-2xl p-6">
+              <div class="text-[10px] font-mono uppercase tracking-widest text-zinc-400 mb-2">Active Devices</div>
+              <div id="statActiveDev" class="text-3xl font-mono font-black text-sky-400">0</div>
+            </div>
+          </div>
+
+          <div class="glass rounded-2xl p-6">
+            <h2 class="text-sm font-mono uppercase tracking-widest text-zinc-300 mb-4">Enterprise Audit Logs</h2>
+            <div class="overflow-x-auto">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Admin</th>
+                    <th>Action</th>
+                    <th>Target / Key</th>
+                  </tr>
+                </thead>
+                <tbody id="auditLogsBody">
+                  <tr><td colspan="4" class="text-center text-zinc-500 py-8">No audit logs recorded</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* PAGE 2: LICENSES HUB */}
+        <div id="page-licenses" class="admin-page space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 class="text-2xl sm:text-3xl font-black text-zinc-100">Licenses Hub</h1>
+              <p class="text-xs text-zinc-400 mt-1">Cryptographic license generator & manager</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <button onclick="fastCreateLicense()" class="btn btn-primary bg-gradient-to-r from-emerald-500 to-emerald-700 text-zinc-950 font-black">
+                <i data-lucide="zap" class="w-4 h-4"></i> ⚡ Fast Create & Copy
+              </button>
+              <button onclick="openModal('modalCreate')" class="btn btn-primary">
+                <i data-lucide="plus" class="w-4 h-4"></i> Create License
+              </button>
+            </div>
+          </div>
+
+          <div class="glass rounded-2xl p-4 flex items-center justify-between gap-4 flex-wrap">
+            <input id="licSearchInp" oninput="renderLicensesTable()" class="inp max-w-sm" placeholder="Search key, email..." />
+            <div class="text-xs text-zinc-400 font-mono" id="licCountLabel">0 licenses</div>
+          </div>
+
+          <div class="glass rounded-2xl overflow-hidden">
+            <div class="overflow-x-auto">
+              <table>
+                <thead>
+                  <tr>
+                    <th>License Key</th>
+                    <th>Plan</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Expires</th>
+                    <th>Max Dev</th>
+                    <th class="text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="licensesTableBody">
+                  <tr><td colspan="7" class="text-center text-zinc-500 py-8">Loading licenses...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* PAGE 3: USERS */}
+        <div id="page-users" class="admin-page space-y-6">
+          <h1 class="text-2xl sm:text-3xl font-black text-zinc-100">Users Database</h1>
+          <div class="glass rounded-2xl overflow-hidden">
+            <div class="overflow-x-auto">
+              <table>
+                <thead>
+                  <tr>
+                    <th>UID</th>
+                    <th>Email</th>
+                    <th>Created</th>
+                  </tr>
+                </thead>
+                <tbody id="usersTableBody">
+                  <tr><td colspan="3" class="text-center text-zinc-500 py-8">No registered users</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* PAGE 4: DEVICES */}
+        <div id="page-devices" class="admin-page space-y-6">
+          <h1 class="text-2xl sm:text-3xl font-black text-zinc-100">Hardware Devices</h1>
+          <div class="glass rounded-2xl overflow-hidden">
+            <div class="overflow-x-auto">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Device ID</th>
+                    <th>License Key</th>
+                    <th>Bound At</th>
+                  </tr>
+                </thead>
+                <tbody id="devicesTableBody">
+                  <tr><td colspan="3" class="text-center text-zinc-500 py-8">No devices bound</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* PAGE 5: USAGE */}
+        <div id="page-usage" class="admin-page space-y-6">
+          <h1 class="text-2xl sm:text-3xl font-black text-zinc-100">Usage Telemetry</h1>
+          <div class="glass rounded-2xl overflow-hidden">
+            <div class="overflow-x-auto">
+              <table>
+                <thead>
+                  <tr>
+                    <th>License Key</th>
+                    <th>Signals Used</th>
+                    <th>Last Active</th>
+                  </tr>
+                </thead>
+                <tbody id="usageTableBody">
+                  <tr><td colspan="3" class="text-center text-zinc-500 py-8">No telemetry recorded</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- CREATE LICENSE MODAL -->
+<div id="modalCreate" class="modal-backdrop">
+  <div class="modal-box space-y-6">
+    <div class="flex items-center justify-between">
+      <h3 class="text-lg font-black text-zinc-100">Create New License</h3>
+      <button onclick="closeModal('modalCreate')" class="text-zinc-400 hover:text-zinc-200">✕</button>
+    </div>
+    <form id="createLicForm" class="space-y-4">
+      <div>
+        <label class="block text-[10px] font-mono uppercase tracking-widest text-zinc-400 mb-2">Plan Tier</label>
+        <select id="createPlan" class="inp">
+          <option value="PRO">PRO (30 Daily)</option>
+          <option value="VIP">VIP (Unlimited)</option>
+          <option value="FREE">FREE (5 Daily)</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-[10px] font-mono uppercase tracking-widest text-zinc-400 mb-2">Duration (Days)</label>
+        <select id="createDays" class="inp">
+          <option value="30">30 Days</option>
+          <option value="90">90 Days</option>
+          <option value="365">365 Days</option>
+          <option value="0">Lifetime (Never Expires)</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-[10px] font-mono uppercase tracking-widest text-zinc-400 mb-2">Max Devices</label>
+        <input id="createMaxDev" type="number" class="inp" value="1" min="1" max="10" required />
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="button" onclick="closeModal('modalCreate')" class="btn btn-ghost flex-1">Cancel</button>
+        <button type="submit" class="btn btn-primary flex-1">Generate Key</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- FAST CREATED MODAL -->
+<div id="modalFast" class="modal-backdrop">
+  <div class="modal-box text-center space-y-6">
+    <div class="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400">
+      <i data-lucide="zap" class="w-7 h-7"></i>
+    </div>
+    <h3 class="text-xl font-black text-zinc-100">⚡ License Created & Copied!</h3>
+    <p class="text-xs text-zinc-400">The cryptographic key has been registered in Firebase and copied to your clipboard.</p>
+    
+    <div id="fastKeyTxt" class="font-mono text-lg font-black text-sky-400 bg-sky-500/10 p-4 rounded-xl border border-sky-500/30 select-all">
+      AROS-XXXX-XXXX-XXXX
+    </div>
+
+    <div class="space-y-2">
+      <a id="fastLaunchBtn" href="index.html" target="_blank" class="btn btn-primary w-full py-3.5 text-xs font-black uppercase tracking-wider">
+        🚀 Launch Client App with Key
+      </a>
+      <button onclick="closeModal('modalFast')" class="btn btn-ghost w-full py-3 text-xs">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCFSJKCkkjbpEOLl773B2T_qHWN50sJG0U",
+  authDomain: "analog-cave-gcf5x.firebaseapp.com",
+  projectId: "analog-cave-gcf5x",
+  firestoreDatabaseId: "ai-studio-arosprime-d71ab896-c76c-4b50-9141-ae86a5c02ca9",
+  storageBucket: "analog-cave-gcf5x.firebasestorage.app",
+  messagingSenderId: "684943769976"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const ADMIN_LS = 'aros_admin_authed';
+
+let licensesCache = [];
+let usersCache = [];
+let devicesCache = [];
+let auditCache = [];
+
+window.addEventListener('DOMContentLoaded', async () => {
+  lucide.createIcons();
+  if (localStorage.getItem(ADMIN_LS) === 'true') {
+    unlockAdminUI();
+  }
+});
+
+document.getElementById('loginForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const key = document.getElementById('loginKeyInp').value.trim().toUpperCase();
+  const err = document.getElementById('loginError');
+  if (key === 'MEHEDI009') {
+    localStorage.setItem(ADMIN_LS, 'true');
+    unlockAdminUI();
+  } else {
+    err.textContent = 'Invalid Master Key. Use MEHEDI009';
+    err.classList.remove('hidden');
+  }
+});
+
+function unlockAdminUI() {
+  document.getElementById('screen-login').classList.add('hidden');
+  document.getElementById('screen-app').classList.remove('hidden');
+  loadAllData();
+}
+
+function lockAdmin() {
+  localStorage.removeItem(ADMIN_LS);
+  location.reload();
+}
+
+function switchAdminTab(target) {
+  document.querySelectorAll('.admin-page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.admin-nav-btn').forEach(b => {
+    b.className = "admin-nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold text-zinc-400 hover:text-zinc-200";
+  });
+
+  document.getElementById('page-' + target).classList.add('active');
+  const btn = document.querySelector(`.admin-nav-btn[data-target="${target}"]`);
+  if (btn) btn.className = "admin-nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold text-sky-400 bg-sky-500/10 border border-sky-500/20";
+  lucide.createIcons();
+}
+
+async function loadAllData() {
+  try {
+    const [licSnap, userSnap, devSnap] = await Promise.all([
+      db.collection('licenses').get(),
+      db.collection('users').get(),
+      db.collection('devices').get()
+    ]);
+
+    licensesCache = licSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    usersCache = userSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    devicesCache = devSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    renderDashboardStats();
+    renderLicensesTable();
+    renderUsersTable();
+    renderDevicesTable();
+    renderUsageTable();
+  } catch (err) {
+    console.error('Failed to load admin data:', err);
+  }
+}
+
+function renderDashboardStats() {
+  const total = licensesCache.length;
+  const active = licensesCache.filter(l => l.status === 'ACTIVE').length;
+  const expired = total - active;
+  const devices = devicesCache.length;
+
+  document.getElementById('statTotalLic').textContent = total;
+  document.getElementById('statActiveLic').textContent = active;
+  document.getElementById('statExpiredLic').textContent = expired;
+  document.getElementById('statActiveDev').textContent = devices;
+}
+
+function renderLicensesTable() {
+  const query = (document.getElementById('licSearchInp')?.value || '').toLowerCase();
+  const filtered = licensesCache.filter(l => (l.key || '').toLowerCase().includes(query) || (l.notes || '').toLowerCase().includes(query));
+  
+  document.getElementById('licCountLabel').textContent = `${filtered.length} licenses`;
+  
+  const tbody = document.getElementById('licensesTableBody');
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-zinc-500 py-8">No licenses found</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(l => `
+    <tr class="font-mono text-xs">
+      <td class="font-bold text-sky-400">${l.key}</td>
+      <td>${l.plan || 'PRO'}</td>
+      <td><span class="px-2 py-0.5 rounded text-[10px] font-bold ${l.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'}">${l.status || 'ACTIVE'}</span></td>
+      <td>${new Date(l.createdAt || Date.now()).toLocaleDateString()}</td>
+      <td>${l.expiresAt ? new Date(l.expiresAt).toLocaleDateString() : 'Never'}</td>
+      <td>${l.maxDevices || 1}</td>
+      <td class="text-right">
+        <button onclick="revokeLicense('${l.id}')" class="btn btn-danger py-1.5 px-3 text-[10px]">Revoke</button>
+      </td>
+    </tr>
+  `).join('');
+  lucide.createIcons();
+}
+
+function renderUsersTable() {
+  const tbody = document.getElementById('usersTableBody');
+  if (usersCache.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="3" class="text-center text-zinc-500 py-8">No registered users</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = usersCache.map(u => `
+    <tr>
+      <td class="font-mono text-xs text-zinc-400">${u.id}</td>
+      <td>${u.email || '—'}</td>
+      <td>${new Date(u.createdAt || Date.now()).toLocaleDateString()}</td>
+    </tr>
+  `).join('');
+}
+
+function renderDevicesTable() {
+  const tbody = document.getElementById('devicesTableBody');
+  if (devicesCache.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="3" class="text-center text-zinc-500 py-8">No bound devices</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = devicesCache.map(d => `
+    <tr class="font-mono text-xs">
+      <td class="text-sky-400">${d.deviceId || d.id}</td>
+      <td>${d.key || '—'}</td>
+      <td>${new Date(d.boundAt || Date.now()).toLocaleDateString()}</td>
+    </tr>
+  `).join('');
+}
+
+function renderUsageTable() {
+  const tbody = document.getElementById('usageTableBody');
+  tbody.innerHTML = licensesCache.map(l => `
+    <tr class="font-mono text-xs">
+      <td class="text-sky-400">${l.key}</td>
+      <td>${l.usageCount || 0}</td>
+      <td>${new Date(l.lastUsed || Date.now()).toLocaleTimeString()}</td>
+    </tr>
+  `).join('');
+}
+
+async function fastCreateLicense() {
+  const key = 'AROS-' + Math.random().toString(36).slice(2, 6).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
+  const newLic = {
+    key,
+    plan: 'PRO',
+    status: 'ACTIVE',
+    createdAt: Date.now(),
+    expiresAt: Date.now() + (30 * 86400000),
+    maxDevices: 1,
+    usageCount: 0,
+    lastUsed: Date.now()
+  };
+
+  await db.collection('licenses').add(newLic);
+  navigator.clipboard.writeText(key);
+
+  document.getElementById('fastKeyTxt').textContent = key;
+  document.getElementById('fastLaunchBtn').href = `index.html?key=${key}`;
+  openModal('modalFast');
+  loadAllData();
+}
+
+document.getElementById('createLicForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const plan = document.getElementById('createPlan').value;
+  const days = Number(document.getElementById('createDays').value);
+  const maxDevices = Number(document.getElementById('createMaxDev').value);
+
+  const key = 'AROS-' + Math.random().toString(36).slice(2, 6).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
+  const newLic = {
+    key,
+    plan,
+    status: 'ACTIVE',
+    createdAt: Date.now(),
+    expiresAt: days === 0 ? null : Date.now() + (days * 86400000),
+    maxDevices,
+    usageCount: 0,
+    lastUsed: Date.now()
+  };
+
+  await db.collection('licenses').add(newLic);
+  closeModal('modalCreate');
+  
+  navigator.clipboard.writeText(key);
+  document.getElementById('fastKeyTxt').textContent = key;
+  document.getElementById('fastLaunchBtn').href = `index.html?key=${key}`;
+  openModal('modalFast');
+  loadAllData();
+});
+
+async function revokeLicense(id) {
+  if (!confirm('Are you sure you want to revoke this license?')) return;
+  await db.collection('licenses').doc(id).update({ status: 'REVOKED' });
+  loadAllData();
+}
+
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+</script>
+</body>
+</html>
